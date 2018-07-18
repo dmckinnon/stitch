@@ -8,6 +8,8 @@
 using namespace cv;
 using namespace std;
 
+#define FAST_SPACING 3
+
 struct point
 {
 	int x;
@@ -51,6 +53,7 @@ int main(int argc, char** argv)
 
 	// pull in both images
 	// Starting with goldengate 0 and 1
+	// TODO: make sure these are black and white
 	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 	
@@ -72,10 +75,53 @@ int main(int argc, char** argv)
 /*
 	Given an image, return a vector of all FAST features in the image.
 	This uses N=12 or above, and an adaptive threshold.
+	Assumed: img is grayscale
+	     16  1  2
+	  15     +    3 
+   14        +      4
+   13  +  +  p  + + 5
+   12        +      6
+      11     +    4
+	     10  9  8
+
+   We start with a threshold of 10?
+   Something to experiment with
 */
+#define THRESH 10
 bool FindFASTFeatures(Mat img, vector<point>& features)
 {
+	// For each pixel (three in from each side)
+	int width = img.cols;
+	int height = img.rows;
+	for (int h = FAST_SPACING; h < height- FAST_SPACING; ++h)
+	{
+		for (int w = FAST_SPACING; w < width - FAST_SPACING; ++w)
+		{
+			// Adapt a brightness threshold?
 
+			int p = img.at<int>(w, h);
+			int pb = p + THRESH;
+			int p_b = p - THRESH;
+
+			// Just make some threshold and figure out an adaptive threshold
+
+			// For a speed-up, check 1, 9, then 5, 13
+			int i1 = img.at<int>(w,h-FAST_SPACING);
+			int i5 = img.at<int>(w+FAST_SPACING, h);
+			int i9 = img.at<int>(w, h + FAST_SPACING);
+			int i13 = img.at<int>(w-FAST_SPACING, h);
+			if (i1 > pb && i9 > pb)
+			{
+
+			}
+			else if (i5 < p_b || i13 < p_b)
+			{
+
+			}
+
+			// We didn't fail the check
+		}
+	}
 
 	return true;
 }
