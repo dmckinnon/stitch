@@ -10,12 +10,15 @@ using namespace std;
 
 #define FAST_SPACING 3
 #define THRESH 15
-/*
-struct point
+#define ST_WINDOW 5
+#define ST_THRESHOLD 0.04f;
+
+
+struct Feature
 {
-	int x;
-	int y;
-};*/
+	Point p;
+	float score;
+};
 
 /* Function prototypes */
 bool FindFASTFeatures(Mat img, vector<Point>& features);
@@ -23,6 +26,8 @@ bool FindFASTFeatures(Mat img, vector<Point>& features);
 bool ThreeOfFourValuesBrighterOrDarker(int i1, int i5, int i9, int i13, int pb, int p_b);
 
 bool CheckForSequential12(std::vector<int> points, int p_b, int pb);
+
+bool ScoreAndClusterFeatures(Mat img, vector<Point>& features);
 
 /* Function Implementations */
 int main(int argc, char** argv)
@@ -57,6 +62,7 @@ int main(int argc, char** argv)
 	- FAST features basic version implemented with a threshold of 10. Do we use a dynamic
 	  threshold? I'll experiment with different numbers. 15 is working for now.
 	- Now score each feature with Shi-Tomasi score (then make descriptors)
+	- TODO: put all feature stuff (detection, scoring, descripting, matching) into separate cpp
 	*/
 
 	// pull in both images
@@ -66,30 +72,23 @@ int main(int argc, char** argv)
 	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 
 	// Find features in each image
-	vector<Point> leftFeatures;
-	if (FindFASTFeatures(leftImage, leftFeatures))
-	{
-		// Draw the features on the image
-		for (unsigned int i = 0; i < leftFeatures.size(); ++i)
-		{
-			circle(leftImage, leftFeatures[i], 2, (255, 255, 0), -1);
-		}
-
-		// Debug display
-		std::string debugWindowName = "debug image";
-		namedWindow(debugWindowName);
-		imshow(debugWindowName, leftImage);
-		waitKey(0);
-	}
-	else
+	vector<Feature> leftFeatures;
+	if (!FindFASTFeatures(leftImage, leftFeatures))
 	{
 		cout << "Failed to find features in left image" << endl;
 	}
-
-
-	// Display for debug reasons
+	vector<Feature> rightFeatures;
+	if (!FindFASTFeatures(rightImage, rightFeatures))
+	{
+		cout << "Failed to find features in right image" << endl;
+	}
 
 	// Score features with Shi-Tomasi score, or Harris score
+	if (!ScoreAndClusterFeatures(leftImage, leftFeatures))
+	{
+		cout << "Failed to score and cluster features in left image" << endl;
+	}
+
 	// Cluster features here too
 
 	// Create descriptors for each feature in each image
@@ -113,7 +112,7 @@ int main(int argc, char** argv)
    We start with a threshold of 10?
    Something to experiment with
 */
-bool FindFASTFeatures(Mat img, vector<Point>& features)
+bool FindFASTFeatures(Mat img, vector<Feature>& features)
 {
 	// For each pixel (three in from each side)
 	int width = img.cols;
@@ -165,9 +164,9 @@ bool FindFASTFeatures(Mat img, vector<Point>& features)
 				}
 
 				// We have a feature. Mark this spot
-				Point feature;
-				feature.x = w;
-				feature.y = h;
+				Feature feature;
+				feature.p.x = w;
+				feature.p.y = h;
 				features.push_back(feature);
 			}
 		}
@@ -294,6 +293,61 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 			return true;
 		}
 	}
+
+	return false;
+}
+
+/*
+	Score features with Shi-Tomasi score.
+	Any features below the cut-off are removed. 
+	
+	Then we do a second pass, and if any features are sufficiently close,
+	we cluster them to the one with the highest score, and boost its score.
+
+	Also should perform non-maximal suppression
+
+	The Shi-Tomasi score uses the minimum eigenvalue of the matrix
+	I_x^2     I_x I_y
+	I_x I_y     I_x ^2
+	where I_x is the derivative in X of the image i at x,y.
+	TODO: which derivative to use?
+	Sobel operator, with a default value of 3
+	4x4 window size? 5x5?
+	
+	Parameters:
+	- There is a cutoff value for the Shi-Tomasi corner detector
+	- Window size for deformation matrix
+	
+*/
+bool ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
+{
+	// let's cheat and use opencv to compute the sobel derivative, window size 3
+	// over the whole image
+	// lol this doesn't actually save us much time but whatevs
+	Mat sobel;
+	GaussianBlur(img, sobel, Size(3, 3), 0, 0, BORDER_DEFAULT);
+	Mat grad_x, grad_y;
+	int scale = 1;
+	int delta = 0;
+	int ddepth = CV_8U;
+	Sobel(sobel, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
+	Sobel(sobel, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
+
+	// We have our x and y gradients
+	// Now with our window size, go over the image
+
+	// for every feature
+		// create a window centered on that feature
+		// compute the M materix by multiplying the window by the deformation matrix
+		// compute the eigenvalues
+		// Score with the threshold
+
+	// For every feature
+		// If some are within a min distance
+		
+
+
+
 
 	return false;
 }
