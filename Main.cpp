@@ -21,13 +21,13 @@ struct Feature
 };
 
 /* Function prototypes */
-bool FindFASTFeatures(Mat img, vector<Point>& features);
+bool FindFASTFeatures(Mat img, vector<Feature>& features);
 
 bool ThreeOfFourValuesBrighterOrDarker(int i1, int i5, int i9, int i13, int pb, int p_b);
 
 bool CheckForSequential12(std::vector<int> points, int p_b, int pb);
 
-bool ScoreAndClusterFeatures(Mat img, vector<Point>& features);
+vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features);
 
 /* Function Implementations */
 int main(int argc, char** argv)
@@ -62,6 +62,7 @@ int main(int argc, char** argv)
 	- FAST features basic version implemented with a threshold of 10. Do we use a dynamic
 	  threshold? I'll experiment with different numbers. 15 is working for now.
 	- Now score each feature with Shi-Tomasi score (then make descriptors)
+	- Iteration one of scoring done, testing now
 	- TODO: put all feature stuff (detection, scoring, descripting, matching) into separate cpp
 	*/
 
@@ -83,6 +84,18 @@ int main(int argc, char** argv)
 		cout << "Failed to find features in right image" << endl;
 	}
 
+	// Draw the features on the image
+	Mat temp = leftImage.clone();
+	for (unsigned int i = 0; i < leftFeatures.size(); ++i)
+	{
+		circle(temp, leftFeatures[i].p, 2, (0, 255, 255), -1);
+	}
+	// Debug display
+	std::string debugWindowName = "debug image";
+	namedWindow(debugWindowName);
+	imshow(debugWindowName, temp);
+	waitKey(0);
+
 	// Score features with Shi-Tomasi score, or Harris score
 	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
 	if (goodLeftFeatures.empty())
@@ -94,6 +107,15 @@ int main(int argc, char** argv)
 	{
 		cout << "Failed to score and cluster features in right image" << endl;
 	}
+
+	// Draw the features on the image
+	for (unsigned int i = 0; i < leftFeatures.size(); ++i)
+	{
+		circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
+	}
+	// Debug display
+	imshow(debugWindowName, leftImage);
+	waitKey(0);
 
 	// Cluster features here too
 
@@ -351,11 +373,11 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 		auto& f = features[i];
 		int winSize = ST_WINDOW / 2;
 		Mat M = Mat::zeros(2, 2, CV_32F);
-		M.at<float>(0, 0) = grad_x.at<float>(f.p.y, f.p.x) * grad_x.at<float>(f.p.y, f.p.x);
-		M.at<float>(0, 1) = grad_x.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
-		M.at<float>(1, 0) = grad_x.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
-		M.at<float>(1, 1) = grad_y.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
-		M *= img.at<int>(f.p.y, f.p.x);
+		M.at<float>(0, 0) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_x.at<uchar>(f.p.y, f.p.x);
+		M.at<float>(0, 1) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
+		M.at<float>(1, 0) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
+		M.at<float>(1, 1) = grad_y.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
+		M *= img.at<uchar>(f.p.y, f.p.x);
 
 		// Compute the eigenvalues of M
 		// so the equation is
