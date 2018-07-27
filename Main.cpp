@@ -11,7 +11,7 @@ using namespace std;
 #define FAST_SPACING 3
 #define THRESH 15
 #define ST_WINDOW 5
-#define ST_THRESHOLD 0.04f;
+#define ST_THRESHOLD 0.04f
 
 
 struct Feature
@@ -84,9 +84,15 @@ int main(int argc, char** argv)
 	}
 
 	// Score features with Shi-Tomasi score, or Harris score
-	if (!ScoreAndClusterFeatures(leftImage, leftFeatures))
+	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
+	if (goodLeftFeatures.empty())
 	{
 		cout << "Failed to score and cluster features in left image" << endl;
+	}
+	std::vector<Feature> goodRightFeatures = ScoreAndClusterFeatures(rightImage, rightFeatures);
+	if (goodRightFeatures.empty())
+	{
+		cout << "Failed to score and cluster features in right image" << endl;
 	}
 
 	// Cluster features here too
@@ -319,7 +325,7 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 	- Window size for deformation matrix
 	
 */
-bool ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
+std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 {
 	// let's cheat and use opencv to compute the sobel derivative, window size 3
 	// over the whole image
@@ -336,18 +342,47 @@ bool ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	// We have our x and y gradients
 	// Now with our window size, go over the image
 
-	// for every feature
-		// create a window centered on that feature
-		// compute the M materix by multiplying the window by the deformation matrix
-		// compute the eigenvalues
-		// Score with the threshold
+	int width = img.cols;
+	int height = img.rows;
+	int numFeatures = features.size();
+	std::vector<Feature> goodFeatures;
+	for (int i = 0; i < numFeatures; ++i)
+	{
+		auto& f = features[i];
+		int winSize = ST_WINDOW / 2;
+		Mat M = Mat::zeros(2, 2, CV_32F);
+		M.at<float>(0, 0) = grad_x.at<float>(f.p.y, f.p.x) * grad_x.at<float>(f.p.y, f.p.x);
+		M.at<float>(0, 1) = grad_x.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
+		M.at<float>(1, 0) = grad_x.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
+		M.at<float>(1, 1) = grad_y.at<float>(f.p.y, f.p.x) * grad_y.at<float>(f.p.y, f.p.x);
+		M *= img.at<int>(f.p.y, f.p.x);
 
-	// For every feature
-		// If some are within a min distance
-		
+		// Compute the eigenvalues of M
+		// so the equation is
+		// (Ix2 - E)(Iy2 - E) - Ixy2, solve for two solutions of e
+		float a = 1.f; // yeah, just for show
+		float b = -1 * (M.at<float>(0, 0) + M.at<float>(1, 1));
+		float c = M.at<float>(0, 0)*M.at<float>(1, 1) - M.at<float>(1, 0)*M.at<float>(0, 1);
+		float eigen1 = (-b + sqrt(b*b - 4 * a*c)) / 2 * a;
+		float eigen2 = (-b - sqrt(b*b - 4 * a*c)) / 2 * a;
 
+		float minEigenvalue = min(eigen1, eigen2);
+		f.score = minEigenvalue;
+		if (f.score <= ST_THRESHOLD)
+		{
+			goodFeatures.push_back(f);
+		}
+	}
 
+	// For every good feature?
+		// Perform clustering based on some minimum distance ...
+		// What sort of clustering?
+		// Can just ignore this for now
+	
+	// Return the highest scoring ones. 
+	// Loop over these and if any are within min distance
+	// Select the higher
+	// Can cut down to a number or not?
 
-
-	return false;
+	return goodFeatures;
 }
