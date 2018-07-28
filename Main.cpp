@@ -10,8 +10,8 @@ using namespace std;
 
 #define FAST_SPACING 3
 #define THRESH 15
-#define ST_WINDOW 5
-#define ST_THRESHOLD 0.04f
+#define ST_WINDOW 3
+#define ST_THRESHOLD 10000.f
 
 
 struct Feature
@@ -62,7 +62,9 @@ int main(int argc, char** argv)
 	- FAST features basic version implemented with a threshold of 10. Do we use a dynamic
 	  threshold? I'll experiment with different numbers. 15 is working for now.
 	- Now score each feature with Shi-Tomasi score (then make descriptors)
-	- Iteration one of scoring done, testing now
+	- Iteration one of scoring done, testing now. Need more tweaking
+	- Got it at least working. Need a better threshold?
+	Do the cleanup now before it's too late
 	- TODO: put all feature stuff (detection, scoring, descripting, matching) into separate cpp
 	*/
 
@@ -93,8 +95,8 @@ int main(int argc, char** argv)
 	// Debug display
 	std::string debugWindowName = "debug image";
 	namedWindow(debugWindowName);
-	imshow(debugWindowName, temp);
-	waitKey(0);
+	//imshow(debugWindowName, temp);
+	//waitKey(0);
 
 	// Score features with Shi-Tomasi score, or Harris score
 	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
@@ -109,7 +111,7 @@ int main(int argc, char** argv)
 	}
 
 	// Draw the features on the image
-	for (unsigned int i = 0; i < leftFeatures.size(); ++i)
+	for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
 	{
 		circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
 	}
@@ -358,26 +360,45 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	int scale = 1;
 	int delta = 0;
 	int ddepth = CV_8U;
-	Sobel(sobel, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
-	Sobel(sobel, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
+	Sobel(sobel, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
+	Sobel(sobel, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
+
+	// COMBINE THE GRADIENTS?
 
 	// We have our x and y gradients
 	// Now with our window size, go over the image
+
+	// Get gaussian kernel for weighting the gradients within the window
+	Mat gaussKernel = Mat(ST_WINDOW, ST_WINDOW, CV_32F, 1);
+	for (int i = 0; i < ST_WINDOW; ++i) for (int j = 0; j < ST_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
+	//Mat gaussKernel = getGaussianKernel(ST_WINDOW, 1, CV_32F);
+	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1, 1, BORDER_DEFAULT);
 
 	int width = img.cols;
 	int height = img.rows;
 	int numFeatures = features.size();
 	std::vector<Feature> goodFeatures;
+	float avgEigen = 0.f;
 	for (int i = 0; i < numFeatures; ++i)
 	{
 		auto& f = features[i];
 		int winSize = ST_WINDOW / 2;
 		Mat M = Mat::zeros(2, 2, CV_32F);
-		M.at<float>(0, 0) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_x.at<uchar>(f.p.y, f.p.x);
-		M.at<float>(0, 1) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
-		M.at<float>(1, 0) = grad_x.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
-		M.at<float>(1, 1) = grad_y.at<uchar>(f.p.y, f.p.x) * grad_y.at<uchar>(f.p.y, f.p.x);
-		M *= img.at<uchar>(f.p.y, f.p.x);
+		// Go through the window around the feature
+		// Accumulate M weighted by the kernel
+		for (int n = - (ST_WINDOW/2); n <= ST_WINDOW/2; ++n)
+		{
+			for (int m = - (ST_WINDOW / 2); m <= (ST_WINDOW / 2); ++m)
+			{
+				int i = n + f.p.y;
+				int j = m + f.p.x;
+				float w = gaussKernel.at<float>(n + (ST_WINDOW / 2), m + (ST_WINDOW / 2));
+				M.at<float>(0, 0) += w*(float)(grad_x.at<uchar>(i, j) * grad_x.at<uchar>(i, j));
+				M.at<float>(0, 1) += w*(float)(grad_x.at<uchar>(i, j) * grad_y.at<uchar>(i, j));
+				M.at<float>(1, 0) += w*(float)(grad_x.at<uchar>(i, j) * grad_y.at<uchar>(i, j));
+				M.at<float>(1, 1) += w*(float)(grad_y.at<uchar>(i, j) * grad_y.at<uchar>(i, j));
+			}
+		}
 
 		// Compute the eigenvalues of M
 		// so the equation is
@@ -390,11 +411,15 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 
 		float minEigenvalue = min(eigen1, eigen2);
 		f.score = minEigenvalue;
-		if (f.score <= ST_THRESHOLD)
+		avgEigen += f.score;
+		//cout << "F score: " << f.score << " at " << f.p.x << "," << f.p.y << endl;
+		if (f.score > ST_THRESHOLD)
 		{
 			goodFeatures.push_back(f);
 		}
 	}
+
+	cout << "Average score: " << avgEigen / features.size() << endl;
 
 	// For every good feature?
 		// Perform clustering based on some minimum distance ...
