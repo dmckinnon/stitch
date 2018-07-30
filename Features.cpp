@@ -9,6 +9,13 @@ using namespace std;
 #define ST_WINDOW 3
 #define ST_THRESH 10000.f
 #define NMS_WINDOW 2
+#define ANGLE_WINDOW 9
+#define ORIENTATION_HIST_BINS 36
+#define SIFT_DESC_BINS 8
+
+#define PI 3.14159f
+#define RAD2DEG(A) (A*180.f/PI)
+#define DEG2RAD(A) (A*PI/180.f)
 
 /*
 	Feature function implementations
@@ -355,7 +362,7 @@ http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
 
 First, we use the SIFT method of computing the orientation of each pixel. 
 Every subsequent orientation, like the gradients below, is taken relative to this
-to ensure invariance to orientation
+to ensure invariance to orientation.
 
 In a 16x16 window around the feature, we create 16 4x4 windows.
 In each window, we create an 8 bin histogram for gradient orientation, weighting
@@ -370,22 +377,75 @@ The vector is normalised, capped at 0.2 for illuminance checking, then normalise
 template <typename T>
 void NormaliseVector(std::vector<T>& v)
 {
-	T s = (T)v.size();
+	float s = L2_norm(v);
 	for (unsigned int i = 0; i < v.size(); ++i)
 	{
 		v[i] /= s;
 	}
 }
+template <typename T>
+float L2_norm(vector<T> v)
+{
+	T norm = (T)0;
+	for (unsigned int i = 0; i < v.size(); ++i)
+	{
+		norm += v[i] * v[i];
+	}
+	return sqrt(norm);
+}
+void ComputeFeatureOrientation(Mat img, Feature& feature, float xgrad, float ygrad);
 // Actual function
 bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vector<FeatureDescriptor>& descriptors)
 {
+	// Smooth the image with a Gaussian first and get gradients
+	Mat smoothed;
+	GaussianBlur(img, smoothed, Size(3, 3), 0, 0, BORDER_DEFAULT);
+	Mat grad_x, grad_y;
+	int scale = 1;
+	int delta = 0;
+	int ddepth = CV_8U;
+	Sobel(smoothed, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
+	Sobel(smoothed, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
+
 	// For each feature
 
 	// Find orientation of feature
+	// The size of the window here depends on scale. For now, we don't use scale
+	// use 36 bins to create a histogram of orientations, entries being gaussian weighted
+	// dominant bin is orientation in degrees
 
 	// create vector
 
 	// normalise
 
 	return false;
+}
+
+/*
+Compute feature orientation.
+This is a window around the feature of size dependent on the feature scale (to come later).
+For now, we'll say a 9x9 window.
+There are 36 bins in the angle histogram, entries weighted by magnitude and by gaussian.
+*/
+void ComputeFeatureOrientation(Mat img, Feature& feature, Mat xgrad, Mat ygrad)
+{
+	// get Gaussian weighting function. Use a sigma 1.5 times the scale
+	// For now, sigma is just 1.5
+	Mat gaussKernel = Mat(ANGLE_WINDOW, ANGLE_WINDOW, CV_32F, 1);
+	for (int i = 0; i < ANGLE_WINDOW; ++i) for (int j = 0; j < ANGLE_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
+	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1.5, 1.5, BORDER_DEFAULT);
+
+	// Create histogram
+	float hist[ORIENTATION_HIST_BINS] = { 0.0f };
+
+	for (int n = -(ANGLE_WINDOW / 2); n <= ANGLE_WINDOW / 2; ++n)
+	{
+		for (int m = -(ANGLE_WINDOW / 2); m <= (ANGLE_WINDOW / 2); ++m)
+		{
+			// Compute angle and magnitude of gradient here
+			float mag = sqrt(xgrad*xgrad + ygrad*ygrad);
+			float angle = RAD2DEG(atan(ygrad/xgrad));
+			hist[(int)(angle/10)] += mag * gaussKernel += 
+		}
+	}
 }
