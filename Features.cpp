@@ -4,6 +4,12 @@
 using namespace cv;
 using namespace std;
 
+#define FAST_SPACING 3
+#define THRESH 15
+#define ST_WINDOW 3
+#define ST_THRESH 10000.f
+#define NMS_WINDOW 2
+
 /*
 	Feature function implementations
 
@@ -41,9 +47,9 @@ bool FindFASTFeatures(Mat img, vector<Feature>& features)
 	{
 		for (int w = FAST_SPACING; w < width - FAST_SPACING; ++w)
 		{
-			// Adapt a brightness threshold?
+			// TODO: Adapt a brightness threshold?
 
-			int p = img.at<uchar>(h, w); // wrong number of dims ... 
+			int p = img.at<uchar>(h, w);
 			int pb = p + THRESH;
 			int p_b = p - THRESH;
 
@@ -220,6 +226,7 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 /*
 Score features with Shi-Tomasi score.
 Any features below the cut-off are removed.
+http://aishack.in/tutorials/harris-corner-detector/
 
 Then we do a second pass, and if any features are sufficiently close,
 we cluster them to the one with the highest score, and boost its score.
@@ -302,24 +309,83 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 		float minEigenvalue = min(eigen1, eigen2);
 		f.score = minEigenvalue;
 		avgEigen += f.score;
-		//cout << "F score: " << f.score << " at " << f.p.x << "," << f.p.y << endl;
-		if (f.score > ST_THRESHOLD)
+		if (f.score > ST_THRESH)
 		{
 			goodFeatures.push_back(f);
 		}
 	}
 
-	cout << "Average score: " << avgEigen / features.size() << endl;
+	// Perform non-maximal suppression over a window around each feature
+	// We'll choose 5x5 around each feature, which is 
+	// if there is a feature of lower score in the 5x5, remove it
+	vector<Feature> temp;
+	for (unsigned int n = 0; n < goodFeatures.size(); ++n)
+	{
+		auto& f = goodFeatures[n];
+		bool thisFeatureIsTheMaximum = true;
+		for (int i = n + 1; i < goodFeatures.size(); ++i)
+		{
+			auto& f2 = goodFeatures[i];
+			int xmargin = abs(f.p.x - f2.p.x);
+			int ymargin = abs(f.p.y - f2.p.y);
+			if (xmargin < NMS_WINDOW || ymargin < NMS_WINDOW)
+			{
+				if (f.score < f2.score)
+				{
+					thisFeatureIsTheMaximum = false;
+					break;
+				}
+			}
+		}
 
-	// For every good feature?
-	// Perform clustering based on some minimum distance ...
-	// What sort of clustering?
-	// Can just ignore this for now
+		if (thisFeatureIsTheMaximum)
+		{
+			temp.push_back(f);
+		}
+	}
 
-	// Return the highest scoring ones. 
-	// Loop over these and if any are within min distance
-	// Select the higher
-	// Can cut down to a number or not?
+	goodFeatures = temp;
 
 	return goodFeatures;
+}
+
+/*
+Create SIFT descriptors for each feature given.
+http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
+
+First, we use the SIFT method of computing the orientation of each pixel. 
+Every subsequent orientation, like the gradients below, is taken relative to this
+to ensure invariance to orientation
+
+In a 16x16 window around the feature, we create 16 4x4 windows.
+In each window, we create an 8 bin histogram for gradient orientation, weighting
+each bin entry with the magnitude of the added vector. These entries are also weighted
+by a gaussian function based on distance from the centre. 
+Then these are all put into the one big 128-long vector.
+The vector is normalised, capped at 0.2 for illuminance checking, then normalised again
+(https://en.wikipedia.org/wiki/Scale-invariant_feature_transform#Keypoint_descriptor)
+
+*/
+// Support functions
+template <typename T>
+void NormaliseVector(std::vector<T>& v)
+{
+	T s = (T)v.size();
+	for (unsigned int i = 0; i < v.size(); ++i)
+	{
+		v[i] /= s;
+	}
+}
+// Actual function
+bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vector<FeatureDescriptor>& descriptors)
+{
+	// For each feature
+
+	// Find orientation of feature
+
+	// create vector
+
+	// normalise
+
+	return false;
 }

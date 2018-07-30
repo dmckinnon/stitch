@@ -4,15 +4,17 @@
 #include <opencv2/highgui.hpp>
 #include <vector>
 
-#define FAST_SPACING 3
-#define THRESH 15
-#define ST_WINDOW 3
-#define ST_THRESHOLD 10000.f
-
 struct Feature
 {
 	cv::Point p;
 	float score;
+	float angle;
+};
+
+#define DESC_LENGTH 128
+struct FeatureDescriptor
+{
+	float vec[DESC_LENGTH];
 };
 
 /*
@@ -21,3 +23,5 @@ struct Feature
 bool FindFASTFeatures(cv::Mat img, std::vector<Feature>& features);
 
 std::vector<Feature> ScoreAndClusterFeatures(cv::Mat img, std::vector<Feature>& features);
+
+bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vector<FeatureDescriptor>& descriptors);

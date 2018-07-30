@@ -23,6 +23,7 @@ int main(int argc, char** argv)
 	- applying transformations to images
 
 	Also:
+	- bundle adjustment
 	- alpha blending
 	- using more than two views
 
@@ -33,8 +34,16 @@ int main(int argc, char** argv)
 	Best if we pick two images with a relatively small baseline compared to the distance
 	from the main object. 
 
+	At the end I should comment the crap out of this for anyone reading in future
+
 	For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
 	Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
+
+	TODO:
+	- Adaptive threshold for FAST features?
+	- Commentary throughout functions
+	- Detect features at different scales
+
 
 	Log:
 	- Starting with the theory of FAST features
@@ -44,7 +53,10 @@ int main(int argc, char** argv)
 	- Now score each feature with Shi-Tomasi score (then make descriptors)
 	- Iteration one of scoring done, testing now. Need more tweaking
 	- Got it at least working. Need a better threshold?
-	- Now for feature description
+	- Now for feature description. HOG won't work - not orientationally invariant. SURF or SIFT ... 
+	  Won't use ORB, want the more difficult route. 
+	  Gonna use SIFT - http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
+	- Non-maximal suppression on features added.
 	*/
 
 	// pull in both images
