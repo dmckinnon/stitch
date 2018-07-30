@@ -442,10 +442,26 @@ void ComputeFeatureOrientation(Mat img, Feature& feature, Mat xgrad, Mat ygrad)
 	{
 		for (int m = -(ANGLE_WINDOW / 2); m <= (ANGLE_WINDOW / 2); ++m)
 		{
+			int i = n + feature.p.y;
+			int j = m + feature.p.x;
+			float gX = xgrad.at<float>(i,j);
+			float gY = ygrad.at<float>(i,j);
 			// Compute angle and magnitude of gradient here
-			float mag = sqrt(xgrad*xgrad + ygrad*ygrad);
-			float angle = RAD2DEG(atan(ygrad/xgrad));
-			hist[(int)(angle/10)] += mag * gaussKernel += 
+			float mag = sqrt(gX*gX + gY* gY);
+			float angle = RAD2DEG(atan(gY / gX));
+			hist[(int)(angle / 10)] += mag * gaussKernel.at<float>(n+(ANGLE_WINDOW/2), m+(ANGLE_WINDOW));
+		}
+	}
+
+	// Find the dominant bin in the histogram
+	// Set the angle of the feature to this bin range in radians
+	float dominantAngle = 0;
+	for (int i = 0; i < ORIENTATION_HIST_BINS; ++i)
+	{
+		if (hist[i] > dominantAngle)
+		{
+			dominantAngle = hist[i];
+			feature.angle = DEG2RAD(i*10.f);
 		}
 	}
 }
