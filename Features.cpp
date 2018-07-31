@@ -11,7 +11,11 @@ using namespace std;
 #define NMS_WINDOW 2
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
-#define SIFT_DESC_BINS 8
+#define DESC_BINS 8
+#define DESC_BIN_SIZE 45
+#define DESC_WINDOW 16
+#define DESC_SUB_WINDOW 4
+#define ILLUMINANCE_BOUND 0.2f
 
 #define PI 3.14159f
 #define RAD2DEG(A) (A*180.f/PI)
@@ -266,9 +270,6 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	int ddepth = CV_8U;
 	Sobel(sobel, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 	Sobel(sobel, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
-
-	// COMBINE THE GRADIENTS?
-
 	// We have our x and y gradients
 	// Now with our window size, go over the image
 
@@ -307,7 +308,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 		// Compute the eigenvalues of M
 		// so the equation is
 		// (Ix2 - E)(Iy2 - E) - Ixy2, solve for two solutions of e
-		float a = 1.f; // yeah, just for show
+		float a = 1.f; // yeah, unnecessary, just for show
 		float b = -1 * (M.at<float>(0, 0) + M.at<float>(1, 1));
 		float c = M.at<float>(0, 0)*M.at<float>(1, 1) - M.at<float>(1, 0)*M.at<float>(0, 1);
 		float eigen1 = (-b + sqrt(b*b - 4 * a*c)) / 2 * a;
@@ -393,7 +394,7 @@ float L2_norm(vector<T> v)
 	}
 	return sqrt(norm);
 }
-void ComputeFeatureOrientation(Mat img, Feature& feature, float xgrad, float ygrad);
+void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad);
 // Actual function
 bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vector<FeatureDescriptor>& descriptors)
 {
@@ -407,18 +408,87 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vect
 	Sobel(smoothed, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 	Sobel(smoothed, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 
+	// Gaussian kernel for weighting descriptor entries
+	// TODO: should this sigma be something else?
+	Mat gaussKernel = Mat(DESC_WINDOW, DESC_WINDOW, CV_32F, 1);
+	for (int i = 0; i < DESC_WINDOW; ++i) for (int j = 0; j < DESC_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
+	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1.5, 1.5, BORDER_DEFAULT);
+
 	// For each feature
+	for (unsigned int i = 0; i < features.size(); ++i)
+	{
+		auto& f = features[i];
 
-	// Find orientation of feature
-	// The size of the window here depends on scale. For now, we don't use scale
-	// use 36 bins to create a histogram of orientations, entries being gaussian weighted
-	// dominant bin is orientation in degrees
+		// Get feature orientation
+		ComputeFeatureOrientation(f, grad_x, grad_y);
 
-	// create vector
+		// Over a 16x16 window, iterate over 4x4 blocks
+		// For each block, compute the histogram
+		// Weight the histogram
+		// Add these to the vector
+		int vecEntryIndex = 0;
+		// Instead of interpolating, we're just going to create the window with
+		// the feature at 8,8. It'll work as an approximation
+		for (unsigned int j = 0; j < DESC_WINDOW; j += DESC_SUB_WINDOW)
+		{
+			for (unsigned int k = 0; k < DESC_WINDOW; k += DESC_SUB_WINDOW)
+			{
+				float hist[DESC_BINS] = {0.0f};
+				// For each 4x4 block
+				for (unsigned int n = j; n < j+DESC_SUB_WINDOW; ++n)
+				{
+					for (unsigned int m = j; m < j + DESC_SUB_WINDOW; ++m)
+					{
+						int imgX = f.p.x - (DESC_WINDOW / 2) + m;
+						int imgY = f.p.y - (DESC_WINDOW / 2) + n;
+						float gX = grad_x.at<float>(imgY, imgX);
+						float gY = grad_y.at<float>(imgY, imgX);
+						float mag = sqrt(gX*gX + gY * gY);
+						float angle = RAD2DEG(atan(gY / gX));
+						// Make angle relative to feature angle
+						angle -= f.angle;
+						hist[(int)angle / DESC_BIN_SIZE] += mag * gaussKernel.at<float>(j,k);
+					}
+				}
 
-	// normalise
+				// add this histogram to the feature vector
+				for (int index = 0; index < DESC_BINS; ++index)
+				{
+					f.desc.vec[vecEntryIndex] = hist[index];
+					vecEntryIndex++;
+				}
+			}
+		}
 
-	return false;
+		// Once the vector is created, we normalise it
+		vector<float> descVec(std::begin(f.desc.vec), std::end(f.desc.vec));
+		NormaliseVector(descVec);
+
+		// Confirm that the descriptor size is 128
+		if (descVec.size() != DESC_LENGTH)
+		{
+			std::cout << "Error: feature vector length = " << descVec.size() << std::endl;
+			continue;
+			// return false;
+		}
+
+		// Cap every entry to 0.2 max, to remove illumination dependence
+		for (unsigned int j = 0; j < descVec.size(); ++j)
+		{
+			if (descVec[j] > ILLUMINANCE_BOUND)
+			{
+				descVec[j] = ILLUMINANCE_BOUND;
+			}
+		}
+
+		// Renormalise
+		NormaliseVector(descVec);
+
+		// Put back in the array
+		std::copy(descVec.begin(), descVec.end(), f.desc.vec);
+	}
+
+	return true;
 }
 
 /*
@@ -427,7 +497,7 @@ This is a window around the feature of size dependent on the feature scale (to c
 For now, we'll say a 9x9 window.
 There are 36 bins in the angle histogram, entries weighted by magnitude and by gaussian.
 */
-void ComputeFeatureOrientation(Mat img, Feature& feature, Mat xgrad, Mat ygrad)
+void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad)
 {
 	// get Gaussian weighting function. Use a sigma 1.5 times the scale
 	// For now, sigma is just 1.5
@@ -442,11 +512,11 @@ void ComputeFeatureOrientation(Mat img, Feature& feature, Mat xgrad, Mat ygrad)
 	{
 		for (int m = -(ANGLE_WINDOW / 2); m <= (ANGLE_WINDOW / 2); ++m)
 		{
+			// Compute magnitude and angle and add to histogram
 			int i = n + feature.p.y;
 			int j = m + feature.p.x;
 			float gX = xgrad.at<float>(i,j);
 			float gY = ygrad.at<float>(i,j);
-			// Compute angle and magnitude of gradient here
 			float mag = sqrt(gX*gX + gY* gY);
 			float angle = RAD2DEG(atan(gY / gX));
 			hist[(int)(angle / 10)] += mag * gaussKernel.at<float>(n+(ANGLE_WINDOW/2), m+(ANGLE_WINDOW));

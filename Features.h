@@ -4,17 +4,18 @@
 #include <opencv2/highgui.hpp>
 #include <vector>
 
+#define DESC_LENGTH 128
+struct FeatureDescriptor
+{
+	float vec[DESC_LENGTH];
+};
+
 struct Feature
 {
 	cv::Point p;
 	float score;
 	float angle;
-};
-
-#define DESC_LENGTH 128
-struct FeatureDescriptor
-{
-	float vec[DESC_LENGTH];
+	FeatureDescriptor desc;
 };
 
 /*
