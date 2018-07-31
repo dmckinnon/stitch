@@ -19,8 +19,9 @@ int main(int argc, char** argv)
 	- feature detection
 	- feature description
 	- feature matching 
+	     - Do this with a K-D tree
 	- optimisation via direct linear transform
-	- applying transformations to images
+	- applying transformations to images RANSAC wooo
 
 	Also:
 	- bundle adjustment
@@ -57,6 +58,8 @@ int main(int argc, char** argv)
 	  Won't use ORB, want the more difficult route. 
 	  Gonna use SIFT - http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
 	- Non-maximal suppression on features added.
+	- Feature orientation added
+	- SIFT descriptors added. To be tested ... 
 	*/
 
 	// pull in both images
@@ -103,17 +106,30 @@ int main(int argc, char** argv)
 	}
 
 	// Draw the features on the image
-	for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
-	{
-		circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
-	}
+	//for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
+	//{
+	//	circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
+	//}
 	// Debug display
-	imshow(debugWindowName, leftImage);
-	waitKey(0);
-
-	// Cluster features here too
+	//imshow(debugWindowName, leftImage);
+	//waitKey(0);
 
 	// Create descriptors for each feature in each image
+	std::vector<FeatureDescriptor> descLeft;
+	if (!CreateSIFTDescriptors(leftImage, goodLeftFeatures, descLeft))
+	{
+		cout << "Failed to create feature descriptors for left image" << endl;
+	}
+	std::vector<FeatureDescriptor> descRight;
+	if (!CreateSIFTDescriptors(rightImage, goodRightFeatures, descRight))
+	{
+		cout << "Failed to create feature descriptors for right image" << endl;
+	}
+
+	// ok ... that might have worked .. ?
+
+
+	// K-D tree
 
 	return 0;
 }

@@ -408,10 +408,12 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vect
 	Sobel(smoothed, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 	Sobel(smoothed, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 
+	// gradient is empty
+
 	// Gaussian kernel for weighting descriptor entries
 	// TODO: should this sigma be something else?
-	Mat gaussKernel = Mat(DESC_WINDOW, DESC_WINDOW, CV_32F, 1);
-	for (int i = 0; i < DESC_WINDOW; ++i) for (int j = 0; j < DESC_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
+	Mat gaussKernel = Mat(DESC_SUB_WINDOW, DESC_SUB_WINDOW, CV_32F, 1);
+	for (int i = 0; i < DESC_SUB_WINDOW; ++i) for (int j = 0; j < DESC_SUB_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
 	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1.5, 1.5, BORDER_DEFAULT);
 
 	// For each feature
@@ -429,6 +431,7 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vect
 		int vecEntryIndex = 0;
 		// Instead of interpolating, we're just going to create the window with
 		// the feature at 8,8. It'll work as an approximation
+		// TODO: interpolate
 		for (unsigned int j = 0; j < DESC_WINDOW; j += DESC_SUB_WINDOW)
 		{
 			for (unsigned int k = 0; k < DESC_WINDOW; k += DESC_SUB_WINDOW)
@@ -437,17 +440,26 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vect
 				// For each 4x4 block
 				for (unsigned int n = j; n < j+DESC_SUB_WINDOW; ++n)
 				{
-					for (unsigned int m = j; m < j + DESC_SUB_WINDOW; ++m)
+					for (unsigned int m = k; m < k + DESC_SUB_WINDOW; ++m)
 					{
 						int imgX = f.p.x - (DESC_WINDOW / 2) + m;
 						int imgY = f.p.y - (DESC_WINDOW / 2) + n;
-						float gX = grad_x.at<float>(imgY, imgX);
-						float gY = grad_y.at<float>(imgY, imgX);
+
+						// Ensure that window stays within bounds of image. xgrad and ygrad have the same size
+						if (imgY < 0 || imgY >= grad_x.rows)
+							continue;
+						if (imgX < 0 || imgX >= grad_x.cols)
+							continue;
+
+						float gX = (float)grad_x.at<uchar>(imgY, imgX);
+						float gY = (float)grad_y.at<uchar>(imgY, imgX);
 						float mag = sqrt(gX*gX + gY * gY);
-						float angle = RAD2DEG(atan(gY / gX));
+						float angle = 0.f;
+						if (gX != 0)
+							angle = RAD2DEG(atan(gY / gX));
 						// Make angle relative to feature angle
 						angle -= f.angle;
-						hist[(int)angle / DESC_BIN_SIZE] += mag * gaussKernel.at<float>(j,k);
+						hist[(int)angle / DESC_BIN_SIZE] += mag * gaussKernel.at<float>(j/DESC_SUB_WINDOW,k/DESC_SUB_WINDOW);
 					}
 				}
 
@@ -486,6 +498,7 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vect
 
 		// Put back in the array
 		std::copy(descVec.begin(), descVec.end(), f.desc.vec);
+		descriptors.push_back(f.desc);
 	}
 
 	return true;
@@ -515,11 +528,21 @@ void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad)
 			// Compute magnitude and angle and add to histogram
 			int i = n + feature.p.y;
 			int j = m + feature.p.x;
-			float gX = xgrad.at<float>(i,j);
-			float gY = ygrad.at<float>(i,j);
+			
+			// Ensure that window stays within bounds of image. xgrad and ygrad have the same size
+			if (i < 0 || i >= xgrad.rows)
+				continue;
+			if (j < 0 || j >= xgrad.cols)
+				continue;
+
+			float gX = (float)xgrad.at<uchar>(i,j);
+			float gY = (float)ygrad.at<uchar>(i,j);
 			float mag = sqrt(gX*gX + gY* gY);
-			float angle = RAD2DEG(atan(gY / gX));
-			hist[(int)(angle / 10)] += mag * gaussKernel.at<float>(n+(ANGLE_WINDOW/2), m+(ANGLE_WINDOW));
+			float angle = 0.f;
+			if (gX != 0)
+				angle = RAD2DEG(atan(gY / gX));
+			//cout << "Gradients and angle: " << gX << " " << gY << " " << angle << endl;
+			hist[(int)(angle / 10)] += mag * gaussKernel.at<float>(n+(ANGLE_WINDOW/2), m+(ANGLE_WINDOW/2));
 		}
 	}
 
