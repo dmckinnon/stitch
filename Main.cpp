@@ -18,10 +18,7 @@ int main(int argc, char** argv)
 	These are:
 	- feature detection
 	- feature description
-	- feature matching 
-	     - Do this with a K-D tree
-		 - Can also solve with nearest neighbours?
-		 - K-D tree is fastest lookup
+	- feature matching with NN
 	- optimisation via direct linear transform
 	- applying transformations to images RANSAC wooo
 
@@ -46,6 +43,7 @@ int main(int argc, char** argv)
 	- Adaptive threshold for FAST features?
 	- Commentary throughout functions
 	- Detect features at different scales
+	- The x gradient is pretty blank for a lot of features ... ?
 
 
 	Log:
@@ -61,7 +59,9 @@ int main(int argc, char** argv)
 	  Gonna use SIFT - http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
 	- Non-maximal suppression on features added.
 	- Feature orientation added
-	- SIFT descriptors added. To be tested ... 
+	- SIFT descriptors added. 
+	- SIFT descriptors possibly working?
+	- Feature matching working? We get some matches at least
 	*/
 
 	// pull in both images
@@ -89,11 +89,7 @@ int main(int argc, char** argv)
 	{
 		circle(temp, leftFeatures[i].p, 2, (0, 255, 255), -1);
 	}
-	// Debug display
-	std::string debugWindowName = "debug image";
-	//namedWindow(debugWindowName);
-	//imshow(debugWindowName, temp);
-	//waitKey(0);
+	
 
 	// Score features with Shi-Tomasi score, or Harris score
 	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
@@ -107,14 +103,7 @@ int main(int argc, char** argv)
 		cout << "Failed to score and cluster features in right image" << endl;
 	}
 
-	// Draw the features on the image
-	//for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
-	//{
-	//	circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
-	//}
-	// Debug display
-	//imshow(debugWindowName, leftImage);
-	//waitKey(0);
+	
 
 	// Create descriptors for each feature in each image
 	std::vector<FeatureDescriptor> descLeft;
@@ -128,23 +117,36 @@ int main(int argc, char** argv)
 		cout << "Failed to create feature descriptors for right image" << endl;
 	}
 
-	// ok ... that might have worked .. ?
-
-
-	// K-D tree for left features to then do matching from right features
-	// Or just kNN ... 
-	// Or could cluster features in several layers for lookup?
-
-	// Let's just select the k nearest neighbours for now for k=2
-	// Over all descriptors
-	// Find the closest and second closest descriptors in the other list
-	// If they are within some threshold of distance
-	// How to store closest descriptors?
-	// If they match, add feature indices to the other feature so we know which ones match
-	// And then we'll align that way
-	// Return a vector of feature pairs - matches
+	// Nearest neighbour matching with Lowe ratio test
 	std::vector<std::pair<Feature, Feature> > matches = MatchDescriptors(goodLeftFeatures, goodRightFeatures);
 	cout << "Number of matches: " << matches.size() << std::endl;
+
+	// Debug display
+	std::string debugWindowName = "debug image";
+	namedWindow(debugWindowName);
+	Mat matchImage;
+	hconcat(leftImage, rightImage, matchImage);
+	int offset = leftImage.cols;
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		Feature f1 = matches[i].first;
+		Feature f2 = matches[i].second;
+		f2.p.x += offset;
+
+		circle(matchImage, f1.p, 2, (255, 255, 0), -1);
+		circle(matchImage, f2.p, 2, (255, 255, 0), -1);
+		line(matchImage, f1.p, f2.p, (0,255,255), 2, 8, 0);
+	}
+	//imshow(debugWindowName, temp);
+	//waitKey(0);
+	// Draw the features on the image
+	//for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
+	//{
+	//	circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
+	//}
+	// Debug display
+	imshow(debugWindowName, matchImage);
+	waitKey(0);
 
 	return 0;
 }
