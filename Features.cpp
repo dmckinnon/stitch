@@ -396,7 +396,7 @@ float L2_norm(vector<T> v)
 }
 void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad);
 // Actual function
-bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature> features, std::vector<FeatureDescriptor>& descriptors)
+bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vector<FeatureDescriptor>& descriptors)
 {
 	// Smooth the image with a Gaussian first and get gradients
 	Mat smoothed;
@@ -553,8 +553,76 @@ void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad)
 	{
 		if (hist[i] > dominantAngle)
 		{
+			// Cap the angle to be between -180 and 180
 			dominantAngle = hist[i];
 			feature.angle = DEG2RAD(i*10.f);
 		}
 	}
+}
+
+/*
+	Match features - the 
+	We only call two features a match if they are sufficiently close
+	and they pass the Lowe ratio test - the next closest feature's distance to the closest
+	distance is above a certain ratio.
+*/
+// Support functions
+float DistanceBetweenDescriptors(FeatureDescriptor a, FeatureDescriptor b)
+{
+	float dist = 0;
+	vector<float> aVec(std::begin(a.vec), std::end(a.vec));
+	vector<float> bVec(std::begin(b.vec), std::end(b.vec));
+	for (unsigned int i = 0; i < aVec.size(); ++i)
+	{
+		aVec[i] -= bVec[i];
+	}
+	return L2_norm(aVec);
+}
+// Actual function
+std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> list1, std::vector<Feature> list2)
+{
+	std::vector<std::pair<Feature, Feature> > matches;
+
+	// Loop through list 1 and compare each to list 2
+	for (unsigned int i = 0; i < list1.size(); ++i)
+	{
+		auto& f = list1[i];
+
+		// Find the closest two matches to this feature's descriptor in list2
+		int closest = -1;
+		int secondClosest = -1;
+		float minDist = -1;
+		for (unsigned int j = 0; j < list2.size(); ++j)
+		{
+			auto& compareFeature = list2[j];
+			float dist = DistanceBetweenDescriptors(f.desc, compareFeature.desc);
+
+			if (minDist == -1 || dist < minDist)
+			{
+				secondClosest = closest;
+				closest = j;
+				minDist = dist;
+			}
+		}
+
+		if (closest == -1 || secondClosest == -1 || closest == secondClosest)
+		{
+			// Something went badly
+			std::cout << "Error: failed to match feature " << i << std::endl;
+		}
+
+		// Lowe ratio test
+		float distClosest = minDist;
+		float distSecondClosest = DistanceBetweenDescriptors(f.desc, list2[secondClosest].desc);
+		float ratio = distClosest / distSecondClosest;
+		// Ratio should be 0.8 or less
+		if (ratio < 0.8)
+		{
+			std::pair<Feature, Feature> match;
+			match = std::make_pair(f, list2[closest]);
+			matches.push_back(match);
+		}
+	}
+
+	return matches;
 }

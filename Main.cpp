@@ -20,6 +20,8 @@ int main(int argc, char** argv)
 	- feature description
 	- feature matching 
 	     - Do this with a K-D tree
+		 - Can also solve with nearest neighbours?
+		 - K-D tree is fastest lookup
 	- optimisation via direct linear transform
 	- applying transformations to images RANSAC wooo
 
@@ -89,7 +91,7 @@ int main(int argc, char** argv)
 	}
 	// Debug display
 	std::string debugWindowName = "debug image";
-	namedWindow(debugWindowName);
+	//namedWindow(debugWindowName);
 	//imshow(debugWindowName, temp);
 	//waitKey(0);
 
@@ -129,7 +131,20 @@ int main(int argc, char** argv)
 	// ok ... that might have worked .. ?
 
 
-	// K-D tree
+	// K-D tree for left features to then do matching from right features
+	// Or just kNN ... 
+	// Or could cluster features in several layers for lookup?
+
+	// Let's just select the k nearest neighbours for now for k=2
+	// Over all descriptors
+	// Find the closest and second closest descriptors in the other list
+	// If they are within some threshold of distance
+	// How to store closest descriptors?
+	// If they match, add feature indices to the other feature so we know which ones match
+	// And then we'll align that way
+	// Return a vector of feature pairs - matches
+	std::vector<std::pair<Feature, Feature> > matches = MatchDescriptors(goodLeftFeatures, goodRightFeatures);
+	cout << "Number of matches: " << matches.size() << std::endl;
 
 	return 0;
 }
