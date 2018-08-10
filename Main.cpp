@@ -43,7 +43,14 @@ int main(int argc, char** argv)
 	- Adaptive threshold for FAST features?
 	- Commentary throughout functions
 	- Detect features at different scales
-	- The x gradient is pretty blank for a lot of features ... ?
+		- Feature detection
+		- feature description
+	    - matching? Only match at same scale
+		- create a scale pyramid
+
+	Issues:
+	- Features detected in one are not detected in the other
+	- Matches are wrong
 
 
 	Log:
@@ -62,14 +69,22 @@ int main(int argc, char** argv)
 	- SIFT descriptors added. 
 	- SIFT descriptors possibly working?
 	- Feature matching working? We get some matches at least
+	- Going to test on other images
+	- So, given that these images are probably poor for FAST corners, I'm going to
+	  implement multi-scale feature detection, to see if that improves anything
+	- Don't do multi-scale yet, just debug FAST features
 	*/
 
 	// pull in both images
 	// Starting with goldengate 0 and 1
 	// TODO: make sure these are black and white
 	// TODO: Make these command line args
-	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
-	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
+	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg");
+	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg");
+	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
+	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
+
+
 
 	// Find features in each image
 	vector<Feature> leftFeatures;
@@ -85,10 +100,25 @@ int main(int argc, char** argv)
 
 	// Draw the features on the image
 	Mat temp = leftImage.clone();
+	// Debug display
+	std::string debugWindowName = "debug image";
+	namedWindow(debugWindowName);
+	Mat matchImage;
+	hconcat(leftImage, rightImage, matchImage);
+	int offset = leftImage.cols;
+	// Draw the features on the image
 	for (unsigned int i = 0; i < leftFeatures.size(); ++i)
 	{
-		circle(temp, leftFeatures[i].p, 2, (0, 255, 255), -1);
+		circle(matchImage, leftFeatures[i].p, 2, (255, 255, 0), -1);
 	}
+	for (unsigned int i = 0; i < rightFeatures.size(); ++i)
+	{
+		Point p(rightFeatures[i].p.x+offset, rightFeatures[i].p.y);
+		circle(matchImage, p, 2, (0, 255, 0), -1);
+	}
+	// Debug display
+	imshow(debugWindowName, matchImage);
+	waitKey(0);
 	
 
 	// Score features with Shi-Tomasi score, or Harris score
@@ -103,7 +133,21 @@ int main(int argc, char** argv)
 		cout << "Failed to score and cluster features in right image" << endl;
 	}
 
-	
+	Mat matchImageScored;
+	hconcat(leftImage, rightImage, matchImageScored);
+	// Draw the features on the image
+	for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
+	{
+		circle(matchImageScored, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
+	}
+	for (unsigned int i = 0; i < goodRightFeatures.size(); ++i)
+	{
+		Point p(goodRightFeatures[i].p.x + offset, goodRightFeatures[i].p.y);
+		circle(matchImageScored, p, 2, (0, 255, 0), -1);
+	}
+	// Debug display
+	imshow(debugWindowName, matchImageScored);
+	waitKey(0);
 
 	// Create descriptors for each feature in each image
 	std::vector<FeatureDescriptor> descLeft;
@@ -122,30 +166,21 @@ int main(int argc, char** argv)
 	cout << "Number of matches: " << matches.size() << std::endl;
 
 	// Debug display
-	std::string debugWindowName = "debug image";
-	namedWindow(debugWindowName);
-	Mat matchImage;
-	hconcat(leftImage, rightImage, matchImage);
-	int offset = leftImage.cols;
+	//std::string debugWindowName = "debug image";
+	//namedWindow(debugWindowName);
+	Mat matchImageFinal;
+	hconcat(leftImage, rightImage, matchImageFinal);
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		Feature f1 = matches[i].first;
 		Feature f2 = matches[i].second;
 		f2.p.x += offset;
 
-		circle(matchImage, f1.p, 2, (255, 255, 0), -1);
-		circle(matchImage, f2.p, 2, (255, 255, 0), -1);
-		line(matchImage, f1.p, f2.p, (0,255,255), 2, 8, 0);
+		circle(matchImageFinal, f1.p, 2, (255, 255, 0), -1);
+		circle(matchImageFinal, f2.p, 2, (255, 255, 0), -1);
+		line(matchImageFinal, f1.p, f2.p, (0,255,255), 2, 8, 0);
 	}
-	//imshow(debugWindowName, temp);
-	//waitKey(0);
-	// Draw the features on the image
-	//for (unsigned int i = 0; i < goodLeftFeatures.size(); ++i)
-	//{
-	//	circle(leftImage, goodLeftFeatures[i].p, 2, (255, 255, 0), -1);
-	//}
-	// Debug display
-	imshow(debugWindowName, matchImage);
+	imshow(debugWindowName, matchImageFinal);
 	waitKey(0);
 
 	return 0;

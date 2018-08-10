@@ -5,9 +5,9 @@ using namespace cv;
 using namespace std;
 
 #define FAST_SPACING 3
-#define THRESH 15
+#define THRESH 30
 #define ST_WINDOW 3
-#define ST_THRESH 10000.f
+#define ST_THRESH 9000.f
 #define NMS_WINDOW 2
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
@@ -51,6 +51,9 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb);
 // Actual fast features function
 bool FindFASTFeatures(Mat img, vector<Feature>& features)
 {
+	// Multi-scale time
+
+
 	// For each pixel (three in from each side)
 	int width = img.cols;
 	int height = img.rows;
@@ -263,7 +266,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	// over the whole image
 	// lol this doesn't actually save us much time but whatevs
 	Mat sobel;
-	GaussianBlur(img, sobel, Size(3, 3), 0, 0, BORDER_DEFAULT);
+	GaussianBlur(img, sobel, Size(ST_WINDOW, ST_WINDOW), 0, 0, BORDER_DEFAULT);
 	Mat grad_x, grad_y;
 	int scale = 1;
 	int delta = 0;
@@ -400,7 +403,7 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 {
 	// Smooth the image with a Gaussian first and get gradients
 	Mat smoothed;
-	GaussianBlur(img, smoothed, Size(3, 3), 0, 0, BORDER_DEFAULT);
+	GaussianBlur(img, smoothed, Size(ST_WINDOW, ST_WINDOW), 0, 0, BORDER_DEFAULT);
 	Mat grad_x, grad_y;
 	int scale = 1;
 	int delta = 0;
