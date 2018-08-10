@@ -73,17 +73,22 @@ int main(int argc, char** argv)
 	- So, given that these images are probably poor for FAST corners, I'm going to
 	  implement multi-scale feature detection, to see if that improves anything
 	- Don't do multi-scale yet, just debug FAST features
+	- Write some tests for FAST features, like check for sequential12
 	*/
 
 	// pull in both images
 	// Starting with goldengate 0 and 1
 	// TODO: make sure these are black and white
 	// TODO: Make these command line args
+	//Mat leftImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test.JPG");
+	//Mat rightImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test.JPG");
 	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg");
 	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg");
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 
+	
+	// Run unit tests
 
 
 	// Find features in each image

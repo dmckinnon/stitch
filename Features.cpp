@@ -67,7 +67,7 @@ bool FindFASTFeatures(Mat img, vector<Feature>& features)
 			int pb = p + THRESH;
 			int p_b = p - THRESH;
 
-			// Just make some threshold and figure out an adaptive threshold
+			// Just make some threshold and figure out an adaptive threshold?
 
 			// For a speed-up, check 1, 9, then 5, 13
 			// Any three of 1,5,9,13 can be all brighter or darker. If not ... not a corner
@@ -123,7 +123,11 @@ bool ThreeOfFourValuesBrighterOrDarker(int i1, int i5, int i9, int i13, int pb, 
 {
 	// Fast fail
 	// If both i1 and i9 lie within [p_b, pb] then we do not have a corner
-	if (p_b < i1 && i1 < pb && p_b < i9 && i9 < pb)
+	if ((p_b < i1 && i1 < pb) && (p_b < i9 && i9 < pb))
+	{
+		return false;
+	}
+	else if ((p_b < i5 && i5 < pb) && (p_b < i13 && i13 < pb))
 	{
 		return false;
 	}
@@ -215,7 +219,7 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 				break;
 		}
 		int bLen = 0;
-		for (int j = i - 1; j != 1; --j)
+		for (int j = i - 1; j != i; --j)
 		{
 			// quit when we get back to i
 			if (j == -1)
@@ -235,6 +239,12 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 	}
 
 	return false;
+}
+
+// Unit Tests for the above
+bool TestSequential12(void)
+{
+	// Create some data for sequential 12 and confirm that it actually does what it should
 }
 
 /*
@@ -266,7 +276,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	// over the whole image
 	// lol this doesn't actually save us much time but whatevs
 	Mat sobel;
-	GaussianBlur(img, sobel, Size(ST_WINDOW, ST_WINDOW), 0, 0, BORDER_DEFAULT);
+	GaussianBlur(img, sobel, Size(ST_WINDOW, ST_WINDOW), 1, 1, BORDER_DEFAULT);
 	Mat grad_x, grad_y;
 	int scale = 1;
 	int delta = 0;
@@ -334,8 +344,11 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	{
 		auto& f = goodFeatures[n];
 		bool thisFeatureIsTheMaximum = true;
-		for (int i = n + 1; i < goodFeatures.size(); ++i)
+		for (int i = 0; i < goodFeatures.size(); ++i)
 		{
+			if (i == n)
+				continue;
+
 			auto& f2 = goodFeatures[i];
 			int xmargin = abs(f.p.x - f2.p.x);
 			int ymargin = abs(f.p.y - f2.p.y);
@@ -403,7 +416,7 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 {
 	// Smooth the image with a Gaussian first and get gradients
 	Mat smoothed;
-	GaussianBlur(img, smoothed, Size(ST_WINDOW, ST_WINDOW), 0, 0, BORDER_DEFAULT);
+	GaussianBlur(img, smoothed, Size(ST_WINDOW, ST_WINDOW), 1, 1, BORDER_DEFAULT);
 	Mat grad_x, grad_y;
 	int scale = 1;
 	int delta = 0;

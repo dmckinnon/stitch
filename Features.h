@@ -30,3 +30,8 @@ std::vector<Feature> ScoreAndClusterFeatures(cv::Mat img, std::vector<Feature>& 
 bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vector<FeatureDescriptor>& descriptors);
 
 std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> list1, std::vector<Feature> list2);
+
+/*
+	Feature Detection Unit Test functions
+*/
+bool TestSequential12(void);
