@@ -91,8 +91,6 @@ int main(int argc, char** argv)
 	
 	// Run unit tests
 	TestSequential12();
-	//return 0;
-
 
 	// Find features in each image
 	vector<Feature> leftFeatures;
@@ -127,7 +125,7 @@ int main(int argc, char** argv)
 		circle(matchImage, p, 2, (0, 255, 0), -1);
 	}
 	// Debug display
-	imshow(debugWindowName, leftImage);
+	imshow(debugWindowName, matchImage);
 	//imshow(debugWindowName1, rightImage);
 	waitKey(0);
 	
