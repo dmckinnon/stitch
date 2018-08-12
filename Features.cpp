@@ -7,7 +7,7 @@ using namespace std;
 #define FAST_SPACING 3
 #define THRESH 30
 #define ST_WINDOW 3
-#define ST_THRESH 9000.f
+#define ST_THRESH 5000.f
 #define NMS_WINDOW 2
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
@@ -626,6 +626,7 @@ float DistanceBetweenDescriptors(FeatureDescriptor a, FeatureDescriptor b)
 	float dist = 0;
 	vector<float> aVec(std::begin(a.vec), std::end(a.vec));
 	vector<float> bVec(std::begin(b.vec), std::end(b.vec));
+	assert(aVec.size() == bVec.size());
 	for (unsigned int i = 0; i < aVec.size(); ++i)
 	{
 		aVec[i] -= bVec[i];
@@ -663,6 +664,7 @@ std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> 
 		{
 			// Something went badly
 			std::cout << "Error: failed to match feature " << i << std::endl;
+			continue;
 		}
 
 		// Lowe ratio test

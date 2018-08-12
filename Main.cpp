@@ -47,11 +47,11 @@ int main(int argc, char** argv)
 		- feature description
 	    - matching? Only match at same scale
 		- create a scale pyramid
+	- Need to tweak threshold for Shi Tomasi
 
 	Issues:
 	- Features detected in one are not detected in the other
 	- Matches are wrong
-	- Features are inconsistently detected
 
 
 	Log:
@@ -75,6 +75,9 @@ int main(int argc, char** argv)
 	  implement multi-scale feature detection, to see if that improves anything
 	- Don't do multi-scale yet, just debug FAST features
 	- Write some tests for FAST features, like check for sequential12
+	- Made images grayscale, and that bloody fixed it. UGH. Was using different colour channels
+	- THINGS WORK SO FAR UP TO MATCHING
+	- Need to tweak Shi Tomasi threshold
 	*/
 
 	// pull in both images
@@ -88,9 +91,6 @@ int main(int argc, char** argv)
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 
-	
-	// Run unit tests
-	TestSequential12();
 
 	// Find features in each image
 	vector<Feature> leftFeatures;
@@ -175,8 +175,6 @@ int main(int argc, char** argv)
 	cout << "Number of matches: " << matches.size() << std::endl;
 
 	// Debug display
-	//std::string debugWindowName = "debug image";
-	//namedWindow(debugWindowName);
 	Mat matchImageFinal;
 	hconcat(leftImage, rightImage, matchImageFinal);
 	for (unsigned int i = 0; i < matches.size(); ++i)
