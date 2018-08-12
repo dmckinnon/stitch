@@ -51,6 +51,7 @@ int main(int argc, char** argv)
 	Issues:
 	- Features detected in one are not detected in the other
 	- Matches are wrong
+	- Features are inconsistently detected
 
 
 	Log:
@@ -80,15 +81,17 @@ int main(int argc, char** argv)
 	// Starting with goldengate 0 and 1
 	// TODO: make sure these are black and white
 	// TODO: Make these command line args
-	//Mat leftImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test.JPG");
-	//Mat rightImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test.JPG");
-	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg");
-	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg");
+	//Mat leftImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test2.JPG", IMREAD_GRAYSCALE);
+	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg", IMREAD_GRAYSCALE);
+	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg", IMREAD_GRAYSCALE);
+	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg", IMREAD_GRAYSCALE);
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 
 	
 	// Run unit tests
+	TestSequential12();
+	//return 0;
 
 
 	// Find features in each image
@@ -108,6 +111,8 @@ int main(int argc, char** argv)
 	// Debug display
 	std::string debugWindowName = "debug image";
 	namedWindow(debugWindowName);
+	//std::string debugWindowName1 = "debug image1";
+	//namedWindow(debugWindowName1);
 	Mat matchImage;
 	hconcat(leftImage, rightImage, matchImage);
 	int offset = leftImage.cols;
@@ -122,7 +127,8 @@ int main(int argc, char** argv)
 		circle(matchImage, p, 2, (0, 255, 0), -1);
 	}
 	// Debug display
-	imshow(debugWindowName, matchImage);
+	imshow(debugWindowName, leftImage);
+	//imshow(debugWindowName1, rightImage);
 	waitKey(0);
 	
 

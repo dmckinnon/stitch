@@ -183,6 +183,7 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 	// if it's above or below
 	// Search front and back until we find a break
 	// count the sequence length
+	assert(pb > p_b);
 
 	// Yes, there are smarter ways to do this. No, I don't care right now.
 	int p = (pb + p_b) / 2;
@@ -206,32 +207,36 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 		// until both sides return false
 		// Forward loop
 		int fLen = 0;
-		for (int j = i + 1; j != i; ++j)
+		int fJ = 0;
+		for (fJ = i + 1; fJ != i; ++fJ)
 		{
 			// quit when we get back to i
-			if (j == 16)
-				j = 0;
-			if (j == i)
+			if (fJ == 16)
+				fJ = 0;
+			if (fJ == i)
 				break;
-			if (comp(points[j], pb, p_b))
+			if (comp(points[fJ], pb, p_b))
 				fLen++;
 			else
 				break;
 		}
+		fJ--;
 		int bLen = 0;
-		for (int j = i - 1; j != i; --j)
+		int bJ = 0;
+		for (int bJ = i - 1; bJ != i && bJ != fJ; --bJ)
 		{
 			// quit when we get back to i
-			if (j == -1)
-				j = 15;
-			if (j == i)
+			if (bJ == -1)
+				bJ = 15;
+			if (bJ == i || bJ == fJ)
 				break;
-			if (comp(points[j], pb, p_b))
+			if (comp(points[bJ], pb, p_b))
 				bLen++;
 			else
 				break;
 		}
 		int seqLen = fLen + bLen + 1;
+		assert(seqLen <= 16);
 		if (seqLen >= 12)
 		{
 			return true;
@@ -242,9 +247,42 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb)
 }
 
 // Unit Tests for the above
-bool TestSequential12(void)
+void TestSequential12(void)
 {
 	// Create some data for sequential 12 and confirm that it actually does what it should
+	int pb = 1;
+	int p_b = 0;
+	std::vector<int> p1{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	// this one should pass
+	assert(!CheckForSequential12(p1, p_b, pb));
+
+	p_b = 1;
+	pb = 3;
+	vector<int> p2{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	// this should pass
+	assert(CheckForSequential12(p2, p_b, pb));
+
+	p_b = 30;
+	pb = 90;
+	// pass, meaning there is a 12 or more
+	vector<int> p3{ 0, 91, 0, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 0 };
+	assert(CheckForSequential12(p3, p_b, pb));
+	// fail
+	vector<int> p4{ 0, 91, 0, 0, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 0 };
+	assert(!CheckForSequential12(p4, p_b, pb));
+	// pass
+	vector<int> p5{ 91, 91, 0, 91, 0, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91 };
+	assert(CheckForSequential12(p5, p_b, pb));
+	// fail
+	vector<int> p6{ 0, 61, 0, 0, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 0 };
+	assert(!CheckForSequential12(p6, p_b, pb));
+	// pass
+	vector<int> p7{ 0, 0, 0, 91, 0, 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	assert(CheckForSequential12(p7, p_b, pb));
+	// fail
+	vector<int> p8{ 0, 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 91, 91, 91, 91, 0 };
+	assert(!CheckForSequential12(p8, p_b, pb));
+
 }
 
 /*

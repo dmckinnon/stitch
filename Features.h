@@ -34,4 +34,4 @@ std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> 
 /*
 	Feature Detection Unit Test functions
 */
-bool TestSequential12(void);
+void TestSequential12(void);
