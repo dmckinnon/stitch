@@ -1,5 +1,6 @@
 #include "Features.h"
 #include <iostream>
+#include <algorithm>
 
 using namespace cv;
 using namespace std;
@@ -7,7 +8,7 @@ using namespace std;
 #define FAST_SPACING 3
 #define THRESH 30
 #define ST_WINDOW 3
-#define ST_THRESH 5000.f
+#define ST_THRESH 25000.f
 #define NMS_WINDOW 2
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
@@ -308,6 +309,12 @@ Parameters:
 - Window size for deformation matrix
 
 */
+// Support function
+bool FeatureCompare(Feature a, Feature b)
+{
+	return a.score > b.score;
+}
+// Actual function
 std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 {
 	// let's cheat and use opencv to compute the sobel derivative, window size 3
@@ -390,7 +397,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 			auto& f2 = goodFeatures[i];
 			int xmargin = abs(f.p.x - f2.p.x);
 			int ymargin = abs(f.p.y - f2.p.y);
-			if (xmargin < NMS_WINDOW || ymargin < NMS_WINDOW)
+			if (xmargin <= NMS_WINDOW && ymargin <= NMS_WINDOW)
 			{
 				if (f.score < f2.score)
 				{
@@ -407,6 +414,9 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	}
 
 	goodFeatures = temp;
+
+	// Sort features
+	sort(goodFeatures.begin(), goodFeatures.end(), FeatureCompare);
 
 	return goodFeatures;
 }

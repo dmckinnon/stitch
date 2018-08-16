@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include "Features.h"
+#include "Estimation.h"
 
 using namespace cv;
 using namespace std;
@@ -47,6 +48,8 @@ int main(int argc, char** argv)
 		- feature description
 	    - matching? Only match at same scale
 		- create a scale pyramid
+		- We don't actually need this at all, we get enough features
+		- and it's easy enough to implement
 	- Need to tweak threshold for Shi Tomasi
 
 	Issues:
@@ -78,6 +81,10 @@ int main(int argc, char** argv)
 	- Made images grayscale, and that bloody fixed it. UGH. Was using different colour channels
 	- THINGS WORK SO FAR UP TO MATCHING
 	- Need to tweak Shi Tomasi threshold
+	- Now to compute a Direct Linear Transform between the two images. I think
+	  I can do the Szeliski algorithm, or RANSAC, or a combination? Then bundle adjust it all
+	  Read Szeliski, figure out the transform
+	- Homography estimation and RANSAC
 	*/
 
 	// pull in both images
@@ -142,6 +149,13 @@ int main(int argc, char** argv)
 		cout << "Failed to score and cluster features in right image" << endl;
 	}
 
+	// Cull each list to top 100 matches
+	vector<Feature> bestLeftFeatures, bestRightFeatures;
+	for (unsigned int i = 0; i < goodLeftFeatures.size() || i > 100; ++i)
+		bestLeftFeatures.push_back(goodLeftFeatures[i]);
+	for (unsigned int i = 0; i < goodRightFeatures.size() || i > 100; ++i)
+		bestRightFeatures.push_back(goodRightFeatures[i]);
+
 	Mat matchImageScored;
 	hconcat(leftImage, rightImage, matchImageScored);
 	// Draw the features on the image
@@ -190,5 +204,34 @@ int main(int argc, char** argv)
 	imshow(debugWindowName, matchImageFinal);
 	waitKey(0);
 
+	// Homography estimation and RANSAC
+	// First, pad the images to allow for warping
+
 	return 0;
 }
+
+/*
+	Find the homography between the two images. 
+
+	Using a RANSAC approach, pick four random matches. Estimate the homography between
+	the images using just these four. Measure the success of this homography by how well
+	it predicts the rest of the matches. If it is below some epsilon, done!
+	If not, repeat for another random four. 
+
+	How do we estimate the homography?  
+	First, normalise all points
+	Scale so that average distance to origin is srt(2) - apparently this makes it behave nicely?
+
+	Create the Matrix A, which is
+	[ -u1  -v1  -1   0    0    0   u1u'1  v1u'1  u'1]
+	[  0    0    0  -u1  -v1  -1   u1v'1  v1v'1  v'1] * h = 0
+	................................................
+	[  0    0    0  -u4  -v4  -1   u4v'4  v4v'4  v'4]
+	where x' = Hx and h = [h1 ... h9] as a vector
+
+	Use Singular Value Decomposition to compute A:
+	UDV^T = A
+	h = V_smallest (column of V corresponding to smallest singular value)
+	Then form H out of that. 
+	Then unnormalise H, using the inverse of the normalisation matrix for the points
+*/
