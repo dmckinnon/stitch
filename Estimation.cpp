@@ -31,6 +31,9 @@ using namespace Eigen;
 // Support functions
 void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 {
+	// Initialise RNG
+	srand(time(NULL));
+
 	i1 = rand() % max;
 	do
 	{
@@ -51,9 +54,6 @@ void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 // Actual function
 bool FindHomography(Matrix3f& homography, const std::vector<std::pair<Feature,Feature> >& matches)
 {
-	// Initialise RNG
-	srand(time(NULL));
-
 	// RANSAC
 	int numMatches = matches.size();
 	for (int k = 0; k < MAX_RANSAC_ITERATIONS; ++k)
@@ -177,7 +177,7 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	From this, sort and get the median, then the average. Return the median, 
 	as we want to be robust to outliers. 
 */
-float EvaluateHomography(std::vector<std::pair<Feature,Feature> >& matches, Matrix3f& H)
+float EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
 {
 	vector<float> diffs;
 	for (unsigned int i = 0; i < matches.size(); ++i)

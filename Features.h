@@ -16,7 +16,7 @@ struct FeatureDescriptor
 struct Feature
 {
 	int scale;
-	cv::Point p;
+	cv::Point2f p;
 	float score;
 	float angle;
 	FeatureDescriptor desc;

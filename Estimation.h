@@ -8,7 +8,7 @@
 #include <Eigen/Dense>
 
 #define MAX_RANSAC_ITERATIONS 50
-#define H_QUALITY_SCORE 100.f
+#define H_QUALITY_SCORE 0.6f
 
 /* Estimation Functions */
 bool FindHomography(Eigen::Matrix3f& homography, const std::vector<std::pair<Feature, Feature> >& matches);

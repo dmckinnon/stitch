@@ -9,6 +9,7 @@
 
 using namespace cv;
 using namespace std;
+using namespace Eigen;
 
 /* Function Implementations */
 int main(int argc, char** argv)
@@ -21,12 +22,12 @@ int main(int argc, char** argv)
 	- feature description
 	- feature matching with NN
 	- optimisation via direct linear transform
-	- applying transformations to images RANSAC wooo
+	- applying transformations to images  - actual stitching
 
 	Also:
-	- bundle adjustment
+	- bundle adjustment - yesss
 	- alpha blending
-	- using more than two views
+	- using more than two views - yesss
 
 	The overarching aim is to learn first hand more computer vision techniques. This gives
 	me a broad knowledge of a lot of skills, whilst also implementing a fun project. 
@@ -106,11 +107,13 @@ int main(int argc, char** argv)
 	if (!FindFASTFeatures(leftImage, leftFeatures))
 	{
 		cout << "Failed to find features in left image" << endl;
+		return 0;
 	}
 	vector<Feature> rightFeatures;
 	if (!FindFASTFeatures(rightImage, rightFeatures))
 	{
 		cout << "Failed to find features in right image" << endl;
+		return 0;
 	}
 
 	// Draw the features on the image
@@ -141,11 +144,13 @@ int main(int argc, char** argv)
 	if (goodLeftFeatures.empty())
 	{
 		cout << "Failed to score and cluster features in left image" << endl;
+		return 0;
 	}
 	std::vector<Feature> goodRightFeatures = ScoreAndClusterFeatures(rightImage, rightFeatures);
 	if (goodRightFeatures.empty())
 	{
 		cout << "Failed to score and cluster features in right image" << endl;
+		return 0;
 	}
 
 	// Sort features and cull each list to top MAC_NUM_FEATURES features
@@ -181,11 +186,13 @@ int main(int argc, char** argv)
 	if (!CreateSIFTDescriptors(leftImage, goodLeftFeatures, descLeft))
 	{
 		cout << "Failed to create feature descriptors for left image" << endl;
+		return 0;
 	}
 	std::vector<FeatureDescriptor> descRight;
 	if (!CreateSIFTDescriptors(rightImage, goodRightFeatures, descRight))
 	{
 		cout << "Failed to create feature descriptors for right image" << endl;
+		return 0;
 	}
 
 	// Nearest neighbour matching with Lowe ratio test
@@ -210,9 +217,29 @@ int main(int argc, char** argv)
 
 	// Homography estimation and RANSAC
 	// For this, copy the matches and normalise all the points
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		matches[i].first.p.x /= leftImage.cols;
+		matches[i].first.p.y /= leftImage.rows;
+		matches[i].second.p.x /= rightImage.cols;
+		matches[i].second.p.y /= rightImage.rows;
+	}
+	Matrix3f H;
+	if (!FindHomography(H, matches))
+	{
+		cout << "Failed to find sufficiently accurate homography for matches" << endl;
+		return 0;
+	}
+	cout << "Homography: \n" << H << std::endl;
 
-
+	// Stitch
 	// First, pad the images to allow for warping
+
+	// Then hit right image points with homography
+	// get the corners of that sub-pixel location
+	// send those back via inverse homography
+	// binlinearly interpolate the values?
+	// ask mustafa or Jaime
 
 	return 0;
 }
