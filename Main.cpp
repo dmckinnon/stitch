@@ -92,8 +92,6 @@ int main(int argc, char** argv)
 	*/
 
 	// pull in both images
-	// Starting with goldengate 0 and 1
-	// TODO: make sure these are black and white
 	// TODO: Make these command line args
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test2.JPG", IMREAD_GRAYSCALE);
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg", IMREAD_GRAYSCALE);
@@ -102,6 +100,17 @@ int main(int argc, char** argv)
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
 
+
+	// TEsting svd
+	Mat H;
+	vector<pair<Point, Point>> points;
+	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
+	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
+	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
+	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
+	EstimateHomography(points, H);
+
+	return 0;
 
 	// Find features in each image
 	vector<Feature> leftFeatures;

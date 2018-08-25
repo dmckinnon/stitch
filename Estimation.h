@@ -14,3 +14,4 @@ bool FindHomography(cv::Mat H, std::vector<std::pair<Feature, Feature> >& matche
 // Evaluate Homography
 
 // Estimate Homography
+bool EstimateHomography(std::vector<std::pair<cv::Point, cv::Point>> points, cv::Mat& H);

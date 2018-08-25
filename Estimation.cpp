@@ -53,9 +53,34 @@ bool FindHomography(Mat H, std::vector<std::pair<Feature,
 
 	To SVD A, we use Eigen
 */
-bool EstimateHomography(vector<Point> points, Mat& H)
+bool EstimateHomography(vector<pair<Point, Point>> points, Mat& H)
 {
 	// Construct A
+	Matrix<float, 8, 9> A;
+	A.setZero();
+	for (unsigned int i = 0; i < points.size(); ++i)
+	{
+		auto& p = points[i];
+		A(2*i,   0) = -1 * p.first.x;
+		A(2 * i, 1) = -1 * p.first.y;
+		A(2 * i, 2) = -1;
+		A(2 * i, 6) = p.first.x * p.second.x;
+		A(2 * i, 7) = p.first.y * p.second.x;
+		A(2 * i, 8) = p.second.x;
+
+		A(2 * i + 1, 3) = -1 * p.first.x;
+		A(2 * i + 1, 4) = -1 * p.first.y;
+		A(2 * i + 1, 5) = -1;
+		A(2 * i + 1, 6) = p.first.x * p.second.y;
+		A(2 * i + 1, 7) = p.first.y * p.second.y;
+		A(2 * i + 1, 8) = p.second.y;
+	}
+
+
+	// test svd
+	BDCSVD<MatrixXf> svd(A, ComputeThinU | ComputeFullV);
+	svd.computeV();
+	std::cout << "V: " << svd.matrixV() << std::endl;
 
 	return false;
 }
