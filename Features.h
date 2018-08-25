@@ -5,6 +5,8 @@
 #include <vector>
 #include <utility>
 
+#define MAX_NUM_FEATURES 100
+
 #define DESC_LENGTH 128
 struct FeatureDescriptor
 {
@@ -19,6 +21,9 @@ struct Feature
 	float angle;
 	FeatureDescriptor desc;
 };
+
+// Feature comparator
+bool FeatureCompare(Feature a, Feature b);
 
 /*
 	Feature Detection functions

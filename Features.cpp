@@ -625,10 +625,13 @@ void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad)
 }
 
 /*
-	Match features - the 
+	Match features
 	We only call two features a match if they are sufficiently close
 	and they pass the Lowe ratio test - the next closest feature's distance to the closest
 	distance is above a certain ratio.
+
+	The structure of the pair is that the first in the pair is from list1, and the
+	second from list2
 */
 // Support functions
 float DistanceBetweenDescriptors(FeatureDescriptor a, FeatureDescriptor b)
@@ -684,6 +687,7 @@ std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> 
 		// Ratio should be 0.8 or less
 		if (ratio < 0.8)
 		{
+			// Create matches with (right, left) structure
 			std::pair<Feature, Feature> match;
 			match = std::make_pair(f, list2[closest]);
 			matches.push_back(match);

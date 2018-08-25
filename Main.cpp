@@ -88,6 +88,7 @@ int main(int argc, char** argv)
 	- Homography estimation and RANSAC
 	- Trying to get SVD for the homography estimation
 	- Imported eigen
+	- Implemented RANSAC to get best homography. Untested
 
 	*/
 
@@ -99,18 +100,6 @@ int main(int argc, char** argv)
 	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg", IMREAD_GRAYSCALE);
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
-
-
-	// TEsting svd
-	Mat H;
-	vector<pair<Point, Point>> points;
-	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
-	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
-	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
-	points.push_back(make_pair(Point(1.f, 1.f), Point(1.f, 1.f)));
-	EstimateHomography(points, H);
-
-	return 0;
 
 	// Find features in each image
 	vector<Feature> leftFeatures;
@@ -129,8 +118,6 @@ int main(int argc, char** argv)
 	// Debug display
 	std::string debugWindowName = "debug image";
 	namedWindow(debugWindowName);
-	//std::string debugWindowName1 = "debug image1";
-	//namedWindow(debugWindowName1);
 	Mat matchImage;
 	hconcat(leftImage, rightImage, matchImage);
 	int offset = leftImage.cols;
@@ -146,7 +133,6 @@ int main(int argc, char** argv)
 	}
 	// Debug display
 	imshow(debugWindowName, matchImage);
-	//imshow(debugWindowName1, rightImage);
 	waitKey(0);
 	
 
@@ -162,12 +148,17 @@ int main(int argc, char** argv)
 		cout << "Failed to score and cluster features in right image" << endl;
 	}
 
-	// Cull each list to top 100 matches
-	vector<Feature> bestLeftFeatures, bestRightFeatures;
-	for (unsigned int i = 0; i < goodLeftFeatures.size() || i > 100; ++i)
-		bestLeftFeatures.push_back(goodLeftFeatures[i]);
-	for (unsigned int i = 0; i < goodRightFeatures.size() || i > 100; ++i)
-		bestRightFeatures.push_back(goodRightFeatures[i]);
+	// Sort features and cull each list to top MAC_NUM_FEATURES features
+	if (goodLeftFeatures.size() > MAX_NUM_FEATURES)
+	{
+		sort(goodLeftFeatures.begin(), goodLeftFeatures.end(), FeatureCompare);
+		goodLeftFeatures.resize(MAX_NUM_FEATURES);
+	}
+	if (goodRightFeatures.size() > MAX_NUM_FEATURES)
+	{
+		sort(goodRightFeatures.begin(), goodRightFeatures.end(), FeatureCompare);
+		goodRightFeatures.resize(MAX_NUM_FEATURES);
+	}
 
 	Mat matchImageScored;
 	hconcat(leftImage, rightImage, matchImageScored);
@@ -218,6 +209,9 @@ int main(int argc, char** argv)
 	waitKey(0);
 
 	// Homography estimation and RANSAC
+	// For this, copy the matches and normalise all the points
+
+
 	// First, pad the images to allow for warping
 
 	return 0;

@@ -5,13 +5,16 @@
 #include <vector>
 #include <utility>
 #include "Features.h"
+#include <Eigen/Dense>
+
+#define MAX_RANSAC_ITERATIONS 50
+#define H_QUALITY_SCORE 100.f
 
 /* Estimation Functions */
-bool FindHomography(cv::Mat H, std::vector<std::pair<Feature, Feature> >& matches, std::vector<Feature>& list1, std::vector<Feature>& list2);
-
-// RANSAC
-
-// Evaluate Homography
+bool FindHomography(Eigen::Matrix3f& homography, const std::vector<std::pair<Feature, Feature> >& matches);
 
 // Estimate Homography
-bool EstimateHomography(std::vector<std::pair<cv::Point, cv::Point>> points, cv::Mat& H);
+bool GetHomographyFromMatches(const std::vector<std::pair<cv::Point, cv::Point>> points, Eigen::Matrix3f& H);
+
+// Evaluate Homography
+float EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches, const Eigen::Matrix3f& H);
