@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 
 	For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
 	Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
+	Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
 
 	TODO:
 	- Adaptive threshold for FAST features?
@@ -85,6 +86,9 @@ int main(int argc, char** argv)
 	  I can do the Szeliski algorithm, or RANSAC, or a combination? Then bundle adjust it all
 	  Read Szeliski, figure out the transform
 	- Homography estimation and RANSAC
+	- Trying to get SVD for the homography estimation
+	- Imported eigen
+
 	*/
 
 	// pull in both images
@@ -210,28 +214,3 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-/*
-	Find the homography between the two images. 
-
-	Using a RANSAC approach, pick four random matches. Estimate the homography between
-	the images using just these four. Measure the success of this homography by how well
-	it predicts the rest of the matches. If it is below some epsilon, done!
-	If not, repeat for another random four. 
-
-	How do we estimate the homography?  
-	First, normalise all points
-	Scale so that average distance to origin is srt(2) - apparently this makes it behave nicely?
-
-	Create the Matrix A, which is
-	[ -u1  -v1  -1   0    0    0   u1u'1  v1u'1  u'1]
-	[  0    0    0  -u1  -v1  -1   u1v'1  v1v'1  v'1] * h = 0
-	................................................
-	[  0    0    0  -u4  -v4  -1   u4v'4  v4v'4  v'4]
-	where x' = Hx and h = [h1 ... h9] as a vector
-
-	Use Singular Value Decomposition to compute A:
-	UDV^T = A
-	h = V_smallest (column of V corresponding to smallest singular value)
-	Then form H out of that. 
-	Then unnormalise H, using the inverse of the normalisation matrix for the points
-*/

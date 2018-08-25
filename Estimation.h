@@ -7,7 +7,7 @@
 #include "Features.h"
 
 /* Estimation Functions */
-bool FindHomography(Mat H, std::vector<std::pair<Feature, Feature> >& matches, std::vector<Feature>& list1, std::vector<Feature>& list2);
+bool FindHomography(cv::Mat H, std::vector<std::pair<Feature, Feature> >& matches, std::vector<Feature>& list1, std::vector<Feature>& list2);
 
 // RANSAC
 
