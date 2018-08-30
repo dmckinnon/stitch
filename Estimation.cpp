@@ -101,10 +101,9 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 	// Convert coordinates to have 0 mean and std dev of 1
 	const pair<Matrix3f, Matrix3f> normaliseMatrices = ConvertPoints(matches);
 
-	// DEBUG
-	float minScore = 100000;
-
 	// RANSAC
+	int maxInliers = 0;
+	Matrix3f bestH;
 	int numMatches = matches.size();
 	for (int k = 0; k < MAX_RANSAC_ITERATIONS; ++k)
 	{
@@ -129,26 +128,24 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 		// Normalise homography
 		H /= H(2, 2);
 		cout << "H: " << H << endl;
-		float score = EvaluateHomography(matches, H);
-		std::cout << "Score: " << score << std::endl; // this is for knowing what a good score is?
-		if (score < minScore)
-			minScore = score;
-		// at most 100 matches, ideally a max distance of 1 ... 100 then?
-		if (score < H_QUALITY_SCORE)
+		int inliers = EvaluateHomography(matches, H);
+		std::cout << "Inliers: " << inliers << std::endl; // this is for knowing what a good score is?
+		if (inliers > maxInliers)
 		{
-			// We have enough inliers. End here
-			homography = normaliseMatrices.second.inverse() * H * normaliseMatrices.first;
-
-			// Convert the homography to image coordinates
-			//homography = 
-
-			return true;
+			maxInliers = inliers;
+			bestH = H;
 		}
 
 		// Not enough inliers. Loop again
 	}
 
-	cout << "Minscore: " << minScore << endl;
+	cout << "max inliers: " << maxInliers << endl;
+
+	if (maxInliers != 0)
+	{
+		homography = normaliseMatrices.second.inverse() * bestH * normaliseMatrices.first;
+		return true;
+	}
 
 	// We failed to find anything good
 	return false;
@@ -244,9 +241,11 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	From this, sort and get the median, then the average. Return the median, 
 	as we want to be robust to outliers. 
 */
-float EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
+int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
 {
 	vector<float> diffs;
+	int numInliers = 0;
+	float positionUncertainty = 4.f;
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		// Convert both points to Eigen points, in normalised homogeneous coords
@@ -258,10 +257,13 @@ float EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Ma
 		// normalise Hx?
 		Hx /= Hx(2);
 		auto diffVector = xprime - Hx;
-		diffs.push_back(diffVector.norm());
-		cout << "Diff: " << diffVector.norm() << " from \n" << x << "\n to \n" << xprime << "\n and Hx: \n" << Hx <<   endl;
+		if (diffVector.norm() < positionUncertainty * RANSAC_INLIER_MULTIPLER)
+		{
+			numInliers++;
+		}
+		//diffs.push_back(diffVector.norm());
+		//cout << "Diff: " << diffVector.norm() << " from \n" << x << "\n to \n" << xprime << "\n and Hx: \n" << Hx <<   endl;
 	}
 
-	sort(diffs.begin(), diffs.end());
-	return diffs[diffs.size()/2];
+	return numInliers
 }

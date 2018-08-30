@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 
 #define MAX_RANSAC_ITERATIONS 50
+#define RANSAC_INLIER_MULTIPLER 2.447f
 #define H_QUALITY_SCORE 1.6f
 
 /* Estimation Functions */
