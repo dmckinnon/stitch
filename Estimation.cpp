@@ -26,7 +26,7 @@ using namespace Eigen;
 	If we never find a homography that produces matches below the epsilon, well,
 	maybe this image pair just ain't good, yeah?
 
-	NOTE: The points in matches must be in normalised image coordinates
+	NOTE: We scale and shift the points to have 0 mean and std dev of 1
 */
 // Support functions
 void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
@@ -50,10 +50,60 @@ void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 		i4 = rand() % max;
 	} while (i4 == i1 || i4 == i2 || i4 == i3);
 }
-
-// Actual function
-bool FindHomography(Matrix3f& homography, const std::vector<std::pair<Feature,Feature> >& matches)
+//
+pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& matches)
 {
+	// For each point in first and second, collect the mean
+	// and compute std deviation
+	Point2f firstAvg(0.f, 0.f);
+	Point2f secondAvg(0.f, 0.f);
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		firstAvg += matches[i].first.p;
+		secondAvg += matches[i].second.p;
+	}
+	firstAvg /= (float)matches.size();
+	secondAvg /= (float)matches.size();
+
+	// Now compute std deviation
+	Point2f firstStdDev(0.f, 0.f);
+	Point2f secondStdDev(0.f, 0.f);
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		auto temp = matches[i].first.p - firstAvg;
+		firstStdDev += Point2f(temp.x*temp.x, temp.y*temp.y);
+
+		temp = matches[i].second.p - secondAvg;
+		secondStdDev += Point2f(temp.x*temp.x, temp.y*temp.y);
+	}
+	firstStdDev /= (float)matches.size();
+	secondStdDev /= (float)matches.size();
+	firstStdDev.x = sqrt(firstStdDev.x);
+	firstStdDev.y = sqrt(firstStdDev.y);
+	secondStdDev.x = sqrt(secondStdDev.x);
+	secondStdDev.y = sqrt(secondStdDev.y);
+
+	// The first of the pair is the matrix for the second point;
+	// The second of the pair is the matrix for the first point.
+	Matrix3f conversionForSecondPoints;
+	conversionForSecondPoints << 1 / secondStdDev.x,             0.f        , secondAvg.x / secondStdDev.x,
+		                                  0.f      ,      1 / secondStdDev.y, secondAvg.y / secondStdDev.y,
+		                                  0.f      ,             0.f        ,           1.f;
+ 	Matrix3f conversionForFirstPoints;
+	conversionForFirstPoints << 1 / firstStdDev.x,             0.f        , firstAvg.x / firstStdDev.x,
+		                                  0.f      ,      1 / firstStdDev.y, firstAvg.y / firstStdDev.y,
+		                                  0.f      ,             0.f        ,           1.f;
+	return make_pair(conversionForSecondPoints, conversionForFirstPoints);
+}
+// Actual function
+bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)
+{
+	// Convert coordinates to have 0 mean and std dev of 1
+	const pair<Matrix3f, Matrix3f> normaliseMatrices = ConvertPoints(matches);
+
+	// DEBUG
+	float minScore = 100000;
+
 	// RANSAC
 	int numMatches = matches.size();
 	for (int k = 0; k < MAX_RANSAC_ITERATIONS; ++k)
@@ -72,22 +122,33 @@ bool FindHomography(Matrix3f& homography, const std::vector<std::pair<Feature,Fe
 		points.push_back(make_pair(matches[i2].second.p, matches[i2].first.p));
 		points.push_back(make_pair(matches[i3].second.p, matches[i3].first.p));
 		points.push_back(make_pair(matches[i4].second.p, matches[i4].first.p));
-		if (!GetHomographyFromMatches(points, H))
+		if (!GetHomographyFromMatches(points, H, normaliseMatrices))
 			continue;
 		
 		// Test the homography with all points
+		// Normalise homography
+		H /= H(2, 2);
+		cout << "H: " << H << endl;
 		float score = EvaluateHomography(matches, H);
 		std::cout << "Score: " << score << std::endl; // this is for knowing what a good score is?
+		if (score < minScore)
+			minScore = score;
 		// at most 100 matches, ideally a max distance of 1 ... 100 then?
 		if (score < H_QUALITY_SCORE)
 		{
 			// We have enough inliers. End here
-			homography = H;
+			homography = normaliseMatrices.second.inverse() * H * normaliseMatrices.first;
+
+			// Convert the homography to image coordinates
+			//homography = 
+
 			return true;
 		}
 
 		// Not enough inliers. Loop again
 	}
+
+	cout << "Minscore: " << minScore << endl;
 
 	// We failed to find anything good
 	return false;
@@ -130,7 +191,7 @@ bool FindHomography(Matrix3f& homography, const std::vector<std::pair<Feature,Fe
 	Since V's columns are eigenvectors of AT * A
 	But whatever
 */
-bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f& H)
+bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f& H, const pair<Matrix3f, Matrix3f>& normaliseMatrices)
 {
 	// Construct A
 	Matrix<float, 8, 9> A;
@@ -138,19 +199,25 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	for (unsigned int i = 0; i < points.size(); ++i)
 	{
 		auto& p = points[i];
-		A(2*i,   0) = -1 * p.first.x;
-		A(2 * i, 1) = -1 * p.first.y;
-		A(2 * i, 2) = -1;
-		A(2 * i, 6) = p.first.x * p.second.x;
-		A(2 * i, 7) = p.first.y * p.second.x;
-		A(2 * i, 8) = p.second.x;
 
-		A(2 * i + 1, 3) = -1 * p.first.x;
-		A(2 * i + 1, 4) = -1 * p.first.y;
+		// normalise the points with the matrices provided
+		auto secondPoint = normaliseMatrices.first * Vector3f(p.second.x, p.second.y, 1.f);
+		auto firstPoint = normaliseMatrices.second * Vector3f(p.first.x, p.first.y, 1.f);
+
+		// Continue building A
+		A(2*i,   0) = -1 * firstPoint(0);
+		A(2 * i, 1) = -1 * firstPoint(1);
+		A(2 * i, 2) = -1;
+		A(2 * i, 6) = firstPoint(0) * secondPoint(0);
+		A(2 * i, 7) = firstPoint(1) * secondPoint(0);
+		A(2 * i, 8) = secondPoint(0);
+
+		A(2 * i + 1, 3) = -1 * firstPoint(0);
+		A(2 * i + 1, 4) = -1 * firstPoint(1);
 		A(2 * i + 1, 5) = -1;
-		A(2 * i + 1, 6) = p.first.x * p.second.y;
-		A(2 * i + 1, 7) = p.first.y * p.second.y;
-		A(2 * i + 1, 8) = p.second.y;
+		A(2 * i + 1, 6) = firstPoint(0) * secondPoint(1);
+		A(2 * i + 1, 7) = firstPoint(1) * secondPoint(1);
+		A(2 * i + 1, 8) = secondPoint(1);
 	}
 
 	// Get the V matrix of the SVD decomposition
@@ -187,9 +254,12 @@ float EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Ma
 		Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
 		Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
 
-		auto Hx = H * x;
+		Vector3f Hx = H * x;
+		// normalise Hx?
+		Hx /= Hx(2);
 		auto diffVector = xprime - Hx;
 		diffs.push_back(diffVector.norm());
+		cout << "Diff: " << diffVector.norm() << " from \n" << x << "\n to \n" << xprime << "\n and Hx: \n" << Hx <<   endl;
 	}
 
 	sort(diffs.begin(), diffs.end());

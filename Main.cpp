@@ -6,6 +6,7 @@
 #include <vector>
 #include "Features.h"
 #include "Estimation.h"
+#include "Compositor.h"
 
 using namespace cv;
 using namespace std;
@@ -45,18 +46,10 @@ int main(int argc, char** argv)
 	TODO:
 	- Adaptive threshold for FAST features?
 	- Commentary throughout functions
-	- Detect features at different scales
-		- Feature detection
-		- feature description
-	    - matching? Only match at same scale
-		- create a scale pyramid
-		- We don't actually need this at all, we get enough features
-		- and it's easy enough to implement
 	- Need to tweak threshold for Shi Tomasi
+	- Tweak RANSAC threshold
 
 	Issues:
-	- Features detected in one are not detected in the other
-	- Matches are wrong
 
 
 	Log:
@@ -90,7 +83,8 @@ int main(int argc, char** argv)
 	- Trying to get SVD for the homography estimation
 	- Imported eigen
 	- Implemented RANSAC to get best homography. Untested
-
+	- Homography returns something, at least. RANSAC epsilon might need tuning
+	- Starting compositing
 	*/
 
 	// pull in both images
@@ -217,13 +211,13 @@ int main(int argc, char** argv)
 
 	// Homography estimation and RANSAC
 	// For this, copy the matches and normalise all the points
-	for (unsigned int i = 0; i < matches.size(); ++i)
-	{
-		matches[i].first.p.x /= leftImage.cols;
-		matches[i].first.p.y /= leftImage.rows;
-		matches[i].second.p.x /= rightImage.cols;
-		matches[i].second.p.y /= rightImage.rows;
-	}
+	//for (unsigned int i = 0; i < matches.size(); ++i)
+	//{
+	//	matches[i].first.p.x /= leftImage.cols;
+	//	matches[i].first.p.y /= leftImage.rows;
+	//	matches[i].second.p.x /= rightImage.cols;
+	//	matches[i].second.p.y /= rightImage.rows;
+	//}
 	Matrix3f H;
 	if (!FindHomography(H, matches))
 	{
@@ -234,12 +228,19 @@ int main(int argc, char** argv)
 
 	// Stitch
 	// First, pad the images to allow for warping
+	Stitch(leftImage, rightImage, H);
 
 	// Then hit right image points with homography
 	// get the corners of that sub-pixel location
 	// send those back via inverse homography
 	// binlinearly interpolate the values?
 	// ask mustafa or Jaime
+
+	// Alpha blending. Poisson blending looks good here
+
+	// TODO: multiple images
+
+	// TODO: bundle adjustment of all points. This actually should happen earlier, really
 
 	return 0;
 }
