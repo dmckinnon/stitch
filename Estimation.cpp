@@ -245,7 +245,7 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 {
 	vector<float> diffs;
 	int numInliers = 0;
-	float positionUncertainty = 4.f;
+	float positionUncertainty = 10.f;
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		// Convert both points to Eigen points, in normalised homogeneous coords
@@ -255,8 +255,10 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 
 		Vector3f Hx = H * x;
 		// normalise Hx?
-		Hx /= Hx(2);
+		//Hx /= Hx(2);
 		auto diffVector = xprime - Hx;
+		cout << x << endl << Hx << endl << diffVector << endl;
+		cout << "Vector norm: " << diffVector.norm() << " vs " << positionUncertainty * RANSAC_INLIER_MULTIPLER << endl;
 		if (diffVector.norm() < positionUncertainty * RANSAC_INLIER_MULTIPLER)
 		{
 			numInliers++;
@@ -265,5 +267,5 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 		//cout << "Diff: " << diffVector.norm() << " from \n" << x << "\n to \n" << xprime << "\n and Hx: \n" << Hx <<   endl;
 	}
 
-	return numInliers
+	return numInliers;
 }

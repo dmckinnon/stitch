@@ -37,9 +37,9 @@ cv::Mat Stitch(const cv::Mat& img1, const cv::Mat& img2, Eigen::Matrix3f H)
 	// and see where they lie relative to img1's 0,0
 	int img1Width = img1.cols;
 	int img1Height = img1.rows;
-	Vector3f topRight((img2.cols-1)/img2.cols, 0, 1);
-	Vector3f bottomRight((img2.cols - 1) / img2.cols, (img2.rows-1)/img2.rows, 1);
-	Vector3f bottomLeft(0, (img2.rows - 1) / img2.rows, 1);
+	Vector3f topRight(img2.cols, 0, 1);
+	Vector3f bottomRight(img2.cols, img2.rows, 1);
+	Vector3f bottomLeft(0, img2.rows, 1);
 	Vector3f topLeft(0, 0, 1);
 
 	auto topRightInImg1Space = H * topRight;
@@ -47,17 +47,11 @@ cv::Mat Stitch(const cv::Mat& img1, const cv::Mat& img2, Eigen::Matrix3f H)
 	auto bottomLeftInImg1Space = H * bottomLeft;
 	auto topLeftInImg1Space = H * topLeft;
 
-	// Print results for now ... 
-	Vector2f tR(topRightInImg1Space(0)*img1Width, topRightInImg1Space(1)*img1Height);
-	Vector2f bR(bottomRightInImg1Space(0)*img1Width, bottomRightInImg1Space(1)*img1Height);
-	Vector2f bL(bottomLeftInImg1Space(0)*img1Width, bottomLeftInImg1Space(1)*img1Height);
-	Vector2f tL(topLeftInImg1Space(0)*img1Width, topLeftInImg1Space(1)*img1Height);
-
 	std::cout << "Corners\n";
-	cout << tR << endl;
-	cout << bR << endl;
-	cout << bL << endl;
-	cout << tL << endl;
+	cout << topRightInImg1Space << endl;
+	cout << bottomRightInImg1Space << endl;
+	cout << bottomLeftInImg1Space << endl;
+	cout << topLeftInImg1Space << endl;
 
 
 	// Create the final Mat. 

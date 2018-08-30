@@ -18,4 +18,4 @@ bool FindHomography(Eigen::Matrix3f& homography, const std::vector<std::pair<Fea
 bool GetHomographyFromMatches(const std::vector<std::pair<cv::Point, cv::Point>> points, Eigen::Matrix3f& H, const std::pair<Eigen::Matrix3f, Eigen::Matrix3f>& normaliseMatrices);
 
 // Evaluate Homography
-float EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches, const Eigen::Matrix3f& H);
+int EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches, const Eigen::Matrix3f& H);
