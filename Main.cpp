@@ -23,11 +23,13 @@ int main(int argc, char** argv)
 	- feature description
 	- feature matching with NN
 	- optimisation via direct linear transform
+		- This may require Levenberg-Marquardt to tighten things up
 	- applying transformations to images  - actual stitching
 
 	Also:
+	- 
 	- bundle adjustment - yesss
-	- alpha blending
+	- alpha blending - poisson blending
 	- using more than two views - yesss
 
 	The overarching aim is to learn first hand more computer vision techniques. This gives
@@ -85,6 +87,7 @@ int main(int argc, char** argv)
 	- Implemented RANSAC to get best homography. Untested
 	- Homography returns something, at least. RANSAC epsilon might need tuning
 	- Starting compositing
+	- Without scaling of homography coordinates, it all actually works!!
 	*/
 
 	// pull in both images

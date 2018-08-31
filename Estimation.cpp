@@ -93,7 +93,12 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 	conversionForFirstPoints << 1 / firstStdDev.x,             0.f        , firstAvg.x / firstStdDev.x,
 		                                  0.f      ,      1 / firstStdDev.y, firstAvg.y / firstStdDev.y,
 		                                  0.f      ,             0.f        ,           1.f;
-	return make_pair(conversionForSecondPoints, conversionForFirstPoints);
+	
+	
+	Matrix3f id;
+	id.Identity();
+	
+	return make_pair(id.Identity() , id.Identity());
 }
 // Actual function
 bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)

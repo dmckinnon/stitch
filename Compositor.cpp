@@ -53,9 +53,34 @@ cv::Mat Stitch(const cv::Mat& img1, const cv::Mat& img2, Eigen::Matrix3f H)
 	cout << bottomLeftInImg1Space << endl;
 	cout << topLeftInImg1Space << endl;
 
+	// For testing, put these into two mats and display them
+
 
 	// Create the final Mat. 
-	
+	Mat test(img1.cols*2, img1.rows*2, CV_8U, Scalar(0));
 
+	// Add the first image
+	for (unsigned int y = 0; y < img1.rows; ++y)
+	{
+		for (unsigned int x = 0; x < img1.cols; ++x)
+		{
+			test.at<uchar>(y + img1.rows/2, x + img1.cols/2) = img1.at<uchar>(y,x);
+		}
+	}
+
+	for (unsigned int y = 0; y < img2.rows; ++y)
+	{
+		for (unsigned int x = 0; x < img2.cols; ++x)
+		{
+			Vector3f point(x, y, 1);
+			auto Hx = H * point;
+			test.at<uchar>(img2.rows / 2 + (int)Hx(1), img2.cols / 2 + (int)Hx(0)) = img2.at<uchar>(y, x);
+		}
+	}
+
+	std::string debugWindowName = "test image";
+	namedWindow(debugWindowName);
+	imshow(debugWindowName, test);
+	waitKey(0);
 	return img1;
 }
