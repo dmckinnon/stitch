@@ -31,6 +31,7 @@ int main(int argc, char** argv)
 	- bundle adjustment - yesss
 	- alpha blending - poisson blending
 	- using more than two views - yesss
+	- parallelise it!
 
 	The overarching aim is to learn first hand more computer vision techniques. This gives
 	me a broad knowledge of a lot of skills, whilst also implementing a fun project. 
@@ -50,6 +51,9 @@ int main(int argc, char** argv)
 	- Commentary throughout functions
 	- Need to tweak threshold for Shi Tomasi
 	- Tweak RANSAC threshold
+	- images as command-line args
+	- error handling? Eh
+	- Cleaning and commentary
 
 	Issues:
 
@@ -212,15 +216,6 @@ int main(int argc, char** argv)
 	imshow(debugWindowName, matchImageFinal);
 	waitKey(0);
 
-	// Homography estimation and RANSAC
-	// For this, copy the matches and normalise all the points
-	//for (unsigned int i = 0; i < matches.size(); ++i)
-	//{
-	//	matches[i].first.p.x /= leftImage.cols;
-	//	matches[i].first.p.y /= leftImage.rows;
-	//	matches[i].second.p.x /= rightImage.cols;
-	//	matches[i].second.p.y /= rightImage.rows;
-	//}
 	Matrix3f H;
 	if (!FindHomography(H, matches))
 	{
@@ -229,15 +224,14 @@ int main(int argc, char** argv)
 	}
 	cout << "Homography: \n" << H << std::endl;
 
-	// Stitch
-	// First, pad the images to allow for warping
-	Stitch(leftImage, rightImage, H);
+	// Stitch the images together
+	pair<int, int> size = GetFinalImageSize(leftImage, rightImage, H);
+	Mat composite(size.second, size.first, CV_8U, Scalar(0));
+	Stitch(leftImage, rightImage, H, composite);
 
-	// Then hit right image points with homography
-	// get the corners of that sub-pixel location
-	// send those back via inverse homography
-	// binlinearly interpolate the values?
-	// ask mustafa or Jaime
+	// Debug output
+	imshow(debugWindowName, composite);
+	waitKey(0);
 
 	// Alpha blending. Poisson blending looks good here
 

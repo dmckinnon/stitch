@@ -9,7 +9,10 @@
 
 /* Composition Functions */
 
+// Final image size
+std::pair<int, int> GetFinalImageSize(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H);
+
 // Get the composition of two images
-cv::Mat Stitch(const cv::Mat& img1, const cv::Mat& img2, Eigen::Matrix3f H);
+void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, cv::Mat& composite);
 
 // Perform alpha blending 

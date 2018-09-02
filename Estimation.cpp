@@ -103,9 +103,6 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 // Actual function
 bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)
 {
-	// Convert coordinates to have 0 mean and std dev of 1
-	const pair<Matrix3f, Matrix3f> normaliseMatrices = ConvertPoints(matches);
-
 	// RANSAC
 	int maxInliers = 0;
 	Matrix3f bestH;
@@ -126,15 +123,13 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 		points.push_back(make_pair(matches[i2].second.p, matches[i2].first.p));
 		points.push_back(make_pair(matches[i3].second.p, matches[i3].first.p));
 		points.push_back(make_pair(matches[i4].second.p, matches[i4].first.p));
-		if (!GetHomographyFromMatches(points, H, normaliseMatrices))
+		if (!GetHomographyFromMatches(points, H))
 			continue;
 		
 		// Test the homography with all points
 		// Normalise homography
 		H /= H(2, 2);
-		cout << "H: " << H << endl;
 		int inliers = EvaluateHomography(matches, H);
-		std::cout << "Inliers: " << inliers << std::endl; // this is for knowing what a good score is?
 		if (inliers > maxInliers)
 		{
 			maxInliers = inliers;
@@ -148,9 +143,11 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 
 	if (maxInliers != 0)
 	{
-		homography = normaliseMatrices.second.inverse() * bestH * normaliseMatrices.first;
+		homography = bestH;
 		return true;
 	}
+
+	// TODO: Bundle Adjustment
 
 	// We failed to find anything good
 	return false;
@@ -193,7 +190,7 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 	Since V's columns are eigenvectors of AT * A
 	But whatever
 */
-bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f& H, const pair<Matrix3f, Matrix3f>& normaliseMatrices)
+bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f& H)
 {
 	// Construct A
 	Matrix<float, 8, 9> A;
@@ -203,8 +200,8 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 		auto& p = points[i];
 
 		// normalise the points with the matrices provided
-		auto secondPoint = normaliseMatrices.first * Vector3f(p.second.x, p.second.y, 1.f);
-		auto firstPoint = normaliseMatrices.second * Vector3f(p.first.x, p.first.y, 1.f);
+		auto secondPoint = Vector3f(p.second.x, p.second.y, 1.f);
+		auto firstPoint = Vector3f(p.first.x, p.first.y, 1.f);
 
 		// Continue building A
 		A(2*i,   0) = -1 * firstPoint(0);
@@ -227,7 +224,6 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	if (!svd.computeV())
 		return false;
 	auto& V = svd.matrixV();
-	//std::cout << "V: " << svd.matrixV() << std::endl;
 
 	// Set H to be the column of V corresponding to the smallest singular value
 	// which is the last as singular values come well-ordered
@@ -250,7 +246,6 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 {
 	vector<float> diffs;
 	int numInliers = 0;
-	float positionUncertainty = 10.f;
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		// Convert both points to Eigen points, in normalised homogeneous coords
@@ -259,18 +254,25 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 		Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
 
 		Vector3f Hx = H * x;
-		// normalise Hx?
-		//Hx /= Hx(2);
-		auto diffVector = xprime - Hx;
-		cout << x << endl << Hx << endl << diffVector << endl;
-		cout << "Vector norm: " << diffVector.norm() << " vs " << positionUncertainty * RANSAC_INLIER_MULTIPLER << endl;
-		if (diffVector.norm() < positionUncertainty * RANSAC_INLIER_MULTIPLER)
+
+		// Use total reprojection error
+		// This is L2(x' - Hx) + L2(x - Hinverse x')
+		auto projectiveDiff = xprime - H * x;
+		auto reprojectiveDiff = x - H.inverse() * xprime;
+		float totalError = projectiveDiff.norm() + reprojectiveDiff.norm();
+		if (totalError < POSITIONAL_UNCERTAINTY * RANSAC_INLIER_MULTIPLER)
 		{
 			numInliers++;
 		}
-		//diffs.push_back(diffVector.norm());
-		//cout << "Diff: " << diffVector.norm() << " from \n" << x << "\n to \n" << xprime << "\n and Hx: \n" << Hx <<   endl;
 	}
 
 	return numInliers;
 }
+
+
+/*
+	Bundle Adjustment
+	http://www.cs.unc.edu/~marc/tutorial/node159.html
+	https://engineering.purdue.edu/kak/computervision/ECE661.08/solution/hw5_s2.pdf
+
+*/
