@@ -93,12 +93,8 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 	conversionForFirstPoints << 1 / firstStdDev.x,             0.f        , firstAvg.x / firstStdDev.x,
 		                                  0.f      ,      1 / firstStdDev.y, firstAvg.y / firstStdDev.y,
 		                                  0.f      ,             0.f        ,           1.f;
-	
-	
-	Matrix3f id;
-	id.Identity();
-	
-	return make_pair(id.Identity() , id.Identity());
+
+	return make_pair(conversionForSecondPoints, conversionForFirstPoints);
 }
 // Actual function
 bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)
@@ -200,8 +196,8 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 		auto& p = points[i];
 
 		// normalise the points with the matrices provided
-		auto secondPoint = Vector3f(p.second.x, p.second.y, 1.f);
-		auto firstPoint = Vector3f(p.first.x, p.first.y, 1.f);
+		auto secondPoint = Vector3f(p.second.x, p.second.y, 1.f); // left
+		auto firstPoint = Vector3f(p.first.x, p.first.y, 1.f); // right
 
 		// Continue building A
 		A(2*i,   0) = -1 * firstPoint(0);
@@ -231,6 +227,9 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 		 V(3, 8), V(4, 8), V(5, 8),
 		 V(6, 8), V(7, 8), V(8, 8);
 
+	// Normalise H
+	H /= H(2, 2);
+
 	return true;
 }
 
@@ -255,6 +254,9 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 
 		Vector3f Hx = H * x;
 
+		// Normalise
+		Hx /= Hx(2);
+
 		// Use total reprojection error
 		// This is L2(x' - Hx) + L2(x - Hinverse x')
 		auto projectiveDiff = xprime - H * x;
@@ -275,4 +277,100 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 	http://www.cs.unc.edu/~marc/tutorial/node159.html
 	https://engineering.purdue.edu/kak/computervision/ECE661.08/solution/hw5_s2.pdf
 
+	The formula for J comes from Multiple View Geometry, page 146, equ. 5.11
+	As of now, I don't understand it. 
+
 */
+// Helper functions
+float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Matrix3f& H)
+{
+	float error = 0;
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
+		Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
+
+		// Get the error term
+		auto projectiveDiff = xprime - H * x;
+		auto reprojectiveDiff = x - H.inverse() * xprime;
+		error += projectiveDiff.norm() + reprojectiveDiff.norm();
+	}
+
+	return error;
+}
+// Actual function
+void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& H)
+{
+	float prevError = ErrorInHomography(matches, H);
+	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
+	{
+		VectorXf update(9);
+		MatrixXf JtJ(9, 9);
+		JtJ.setZero();
+		VectorXf Jte(9);
+		Jte.setZero();
+
+		// L-M update parameter
+		float lambda = 0.001f;
+
+		// Over all feature points
+		for (unsigned int i = 0; i < matches.size(); ++i)
+		{
+			// As above, first is x, the point on the right,
+			// and second is x', the point on the left
+			Vector3f x(matches[i].second.p.x, matches[i].second.p.y , 1);
+			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y , 1);
+
+			// Get the error term
+			auto Hx = H * x;
+			float w = Hx(2);
+			Vector3f e = xprime - Hx;
+			Vector2f e2(e(0), e(1));
+
+			// Build the Jacobian
+			MatrixXf J(2, 9);
+			J.setZero();
+			J << x(0), x(1), x(2), 0, 0, 0, -xprime(0)*x(0), -xprime(0)*x(1), -xprime(0),
+				0, 0, 0, x(0), x(1), x(2), -xprime(1)*x(0), -xprime(1)*x(1), -xprime(1);// ,
+				//0, 0, 0, 0, 0, 0, 0, 0, 0;//-xprime(2), -xprime(2), -xprime(2);
+			// Apply weighting
+			if (w != 0)
+			{
+				J /= w; 
+			}
+
+			// Accumulate
+			JtJ += J.transpose() * J;
+			Jte += J.transpose() * e2;
+		}
+
+		// Levenberg-Marquardt update
+		// TODO: pick a lambda, update lambda
+		for (int i = 0; i < JtJ.rows(); ++i)
+		{
+			JtJ(i, i) += lambda * JtJ(i, i);
+		}
+
+		// Compute the update
+		update = JtJ.inverse() * Jte;
+		Matrix3f updateToH;
+		updateToH << update(0), update(1), update(2),
+			         update(3), update(4), update(5),
+			         update(6), update(7), update(8);
+
+		// Test the update. If our error increased at all,
+		// cut out and we'll stop optimising.
+		// If the error decreases ... well, update the true H and keep going
+		float currError = ErrorInHomography(matches, updateToH*H);
+		if (currError < prevError)
+		{
+			// update and continue
+			prevError = currError;
+			H = updateToH * H;
+		}
+		else
+		{
+			break;
+		}
+	}
+}

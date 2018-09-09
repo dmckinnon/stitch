@@ -47,15 +47,18 @@ int main(int argc, char** argv)
 	Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
 
 	TODO:
-	- Adaptive threshold for FAST features?
-	- Commentary throughout functions
+	- Adaptive threshold for FAST features?2
 	- Need to tweak threshold for Shi Tomasi
 	- Tweak RANSAC threshold
 	- images as command-line args
 	- error handling? Eh
 	- Cleaning and commentary
+	- fix normalisation scaling
+	- Update levenberg marquardt parameter
+
 
 	Issues:
+	- homography estimation is biased
 
 
 	Log:
@@ -92,6 +95,10 @@ int main(int argc, char** argv)
 	- Homography returns something, at least. RANSAC epsilon might need tuning
 	- Starting compositing
 	- Without scaling of homography coordinates, it all actually works!!
+	- changed RANSAC criterion
+	- Next on the list is Levenberg-Marquardt, and then blending,
+	  although I should get normalisation working first
+
 	*/
 
 	// pull in both images
@@ -197,6 +204,7 @@ int main(int argc, char** argv)
 	}
 
 	// Nearest neighbour matching with Lowe ratio test
+	// The first in each pair in matches is from the left; the second, from the right. 
 	std::vector<std::pair<Feature, Feature> > matches = MatchDescriptors(goodLeftFeatures, goodRightFeatures);
 	cout << "Number of matches: " << matches.size() << std::endl;
 
@@ -224,6 +232,9 @@ int main(int argc, char** argv)
 	}
 	cout << "Homography: \n" << H << std::endl;
 
+	// Refine the homography with bundle adjustment
+	BundleAdjustment(matches, H);
+
 	// Stitch the images together
 	pair<int, int> size = GetFinalImageSize(leftImage, rightImage, H);
 	Mat composite(size.second, size.first, CV_8U, Scalar(0));
@@ -236,8 +247,6 @@ int main(int argc, char** argv)
 	// Alpha blending. Poisson blending looks good here
 
 	// TODO: multiple images
-
-	// TODO: bundle adjustment of all points. This actually should happen earlier, really
 
 	return 0;
 }

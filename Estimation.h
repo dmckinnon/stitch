@@ -7,9 +7,10 @@
 #include "Features.h"
 #include <Eigen/Dense>
 
-#define MAX_RANSAC_ITERATIONS 50
+#define MAX_RANSAC_ITERATIONS 100
 #define RANSAC_INLIER_MULTIPLER 2.447f
 #define POSITIONAL_UNCERTAINTY 20.f
+#define MAX_BA_ITERATIONS 10
 
 /* Estimation Functions */
 bool FindHomography(Eigen::Matrix3f& homography, const std::vector<std::pair<Feature, Feature> >& matches);
@@ -19,3 +20,6 @@ bool GetHomographyFromMatches(const std::vector<std::pair<cv::Point, cv::Point>>
 
 // Evaluate Homography
 int EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches, const Eigen::Matrix3f& H);
+
+// Bundle Adjustment
+void BundleAdjustment(const std::vector<std::pair<Feature, Feature> >& matches, Eigen::Matrix3f& H);
