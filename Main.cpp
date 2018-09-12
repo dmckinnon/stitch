@@ -98,8 +98,26 @@ int main(int argc, char** argv)
 	- changed RANSAC criterion
 	- Next on the list is Levenberg-Marquardt, and then blending,
 	  although I should get normalisation working first
-
+    - Bundle adjustment isn't working, though I think I have the wrong Jacobian ... ?
 	*/
+
+	// Finite diff test
+	/*Matrix3f Htest;
+	Htest << 0.987258, -0.0434489, 28.0799,
+		0.000847841, 0.957477, 5.57398,
+		6.94426e-07, -8.68033e-05, 1;
+	FiniteDiff(Htest);
+
+	return 0;*/
+
+	/*
+	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
+           0            0            0  1.54972e-05  1.54972e-05 -3.21865e-05     -12.9533     -12.9533     -12.9533
+	*/
+
+    // For debuggging
+	std::string debugWindowName = "debug image";
+	namedWindow(debugWindowName);
 
 	// pull in both images
 	// TODO: Make these command line args
@@ -124,11 +142,11 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
+#ifdef DEBUG
 	// Draw the features on the image
 	Mat temp = leftImage.clone();
 	// Debug display
-	std::string debugWindowName = "debug image";
-	namedWindow(debugWindowName);
+	
 	Mat matchImage;
 	hconcat(leftImage, rightImage, matchImage);
 	int offset = leftImage.cols;
@@ -145,7 +163,7 @@ int main(int argc, char** argv)
 	// Debug display
 	imshow(debugWindowName, matchImage);
 	waitKey(0);
-	
+#endif
 
 	// Score features with Shi-Tomasi score, or Harris score
 	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
@@ -173,6 +191,7 @@ int main(int argc, char** argv)
 		goodRightFeatures.resize(MAX_NUM_FEATURES);
 	}
 
+#ifdef DEBUG
 	Mat matchImageScored;
 	hconcat(leftImage, rightImage, matchImageScored);
 	// Draw the features on the image
@@ -188,6 +207,7 @@ int main(int argc, char** argv)
 	// Debug display
 	imshow(debugWindowName, matchImageScored);
 	waitKey(0);
+#endif
 
 	// Create descriptors for each feature in each image
 	std::vector<FeatureDescriptor> descLeft;
@@ -209,6 +229,7 @@ int main(int argc, char** argv)
 	cout << "Number of matches: " << matches.size() << std::endl;
 
 	// Debug display
+#ifdef DEBUG
 	Mat matchImageFinal;
 	hconcat(leftImage, rightImage, matchImageFinal);
 	for (unsigned int i = 0; i < matches.size(); ++i)
@@ -223,6 +244,7 @@ int main(int argc, char** argv)
 	}
 	imshow(debugWindowName, matchImageFinal);
 	waitKey(0);
+#endif
 
 	Matrix3f H;
 	if (!FindHomography(H, matches))
@@ -240,10 +262,10 @@ int main(int argc, char** argv)
 	Mat composite(size.second, size.first, CV_8U, Scalar(0));
 	Stitch(leftImage, rightImage, H, composite);
 
-	// Debug output
+//#ifdef DEBUG
 	imshow(debugWindowName, composite);
 	waitKey(0);
-
+//#endif
 	// Alpha blending. Poisson blending looks good here
 
 	// TODO: multiple images

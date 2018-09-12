@@ -112,7 +112,7 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 					if (composite.at<uchar>(y, x) == 0)
 						composite.at<uchar>(y, x) = pixelVal;
 					else
-						composite.at<uchar>(y, x) = (pixelVal+ composite.at<uchar>(y, x))/2;
+						composite.at<uchar>(y, x) = (pixelVal + composite.at<uchar>(y, x))/2;
 				}
 			}
 		}

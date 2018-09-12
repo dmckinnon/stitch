@@ -23,3 +23,6 @@ int EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches,
 
 // Bundle Adjustment
 void BundleAdjustment(const std::vector<std::pair<Feature, Feature> >& matches, Eigen::Matrix3f& H);
+
+// Unit test for Jacobians
+void FiniteDiff(const Eigen::Matrix3f& H);

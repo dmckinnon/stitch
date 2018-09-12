@@ -32,7 +32,10 @@ using namespace Eigen;
 void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 {
 	// Initialise RNG
-	srand(time(NULL));
+	//srand(time(NULL));
+
+	// DEBUG
+	srand(5);
 
 	i1 = rand() % max;
 	do
@@ -280,6 +283,13 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 	The formula for J comes from Multiple View Geometry, page 146, equ. 5.11
 	As of now, I don't understand it. 
 
+	Here is an explanation and a derivation. This also explains how to get the covariance
+	I think
+	https://pdfs.semanticscholar.org/66e4/283c28a2a93c4d4674f4213e1e9f67cfc737.pdf
+
+
+	We ignore covariance for now
+
 */
 // Helper functions
 float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Matrix3f& H)
@@ -301,17 +311,21 @@ float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Ma
 // Actual function
 void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& H)
 {
-	float prevError = ErrorInHomography(matches, H);
+
+	// L-M update parameter
+	float lambda = 0;// 0.001f;
+	float prevError = 100000000;// ErrorInHomography(matches, H);
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
 		VectorXf update(9);
+		Vector2f error_accum;
+		error_accum.setZero();
 		MatrixXf JtJ(9, 9);
 		JtJ.setZero();
 		VectorXf Jte(9);
 		Jte.setZero();
 
-		// L-M update parameter
-		float lambda = 0.001f;
+		
 
 		// Over all feature points
 		for (unsigned int i = 0; i < matches.size(); ++i)
@@ -322,33 +336,36 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y , 1);
 
 			// Get the error term
-			auto Hx = H * x;
+			Vector3f Hx = H * x;
 			float w = Hx(2);
+			Hx /= w;
 			Vector3f e = xprime - Hx;
-			Vector2f e2(e(0), e(1));
+			const Vector2f e2(e(0), e(1));
 
 			// Build the Jacobian
 			MatrixXf J(2, 9);
 			J.setZero();
-			J << x(0), x(1), x(2), 0, 0, 0, -xprime(0)*x(0), -xprime(0)*x(1), -xprime(0),
-				0, 0, 0, x(0), x(1), x(2), -xprime(1)*x(0), -xprime(1)*x(1), -xprime(1);// ,
-				//0, 0, 0, 0, 0, 0, 0, 0, 0;//-xprime(2), -xprime(2), -xprime(2);
-			// Apply weighting
-			if (w != 0)
-			{
-				J /= w; 
-			}
+			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
+				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
+			J /= w;
+			// ,
+				//0, 0, 0, 0, 0, 0, 0, 0, 0, -xprime(2), -xprime(2), -xprime(2);
+			//J << -x(0), -x(1), -x(2), 0, 0, 0, 0, 0, 0,
+			//	0, 0, 0, -x(0), -x(1), -x(2), 0, 0, 0,
+			//	0, 0, 0, 0, 0, 0, -x(0), -x(1), -x(2);
 
 			// Accumulate
 			JtJ += J.transpose() * J;
 			Jte += J.transpose() * e2;
+
+			error_accum += e2;
 		}
 
 		// Levenberg-Marquardt update
 		// TODO: pick a lambda, update lambda
 		for (int i = 0; i < JtJ.rows(); ++i)
 		{
-			JtJ(i, i) += lambda * JtJ(i, i);
+			JtJ(i, i) += lambda *JtJ(i, i);
 		}
 
 		// Compute the update
@@ -361,16 +378,73 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		// Test the update. If our error increased at all,
 		// cut out and we'll stop optimising.
 		// If the error decreases ... well, update the true H and keep going
-		float currError = ErrorInHomography(matches, updateToH*H);
+		float currError = ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
 		if (currError < prevError)
 		{
 			// update and continue
-			prevError = currError;
-			H = updateToH * H;
+			
+			//lambda /= 10;
 		}
 		else
 		{
-			break;
+			//lambda *= 10;
+			//break;
 		}
+		prevError = currError;
+		cout << update << endl;
+		H += updateToH;
+		H /= H(2, 2);
+		cout << H << endl;
 	}
+}
+
+void FiniteDiff(const Matrix3f& H)
+{
+	const Vector3f x(1.f, 2.f, 1.f);
+
+	// Let f(h) = Hx
+	// Compute f(h+epsilon) and f(h), then divide the difference by epsilon
+	Vector3f Hx = H * x;
+	float w = Hx(2);
+	Hx /= w;
+	float e = 0.01f;
+	Matrix3f epsilon;
+	epsilon.setConstant(e);
+	Vector3f Hx_plus_e = (H + epsilon)*x;
+	//Hx_plus_e /= Hx_plus_e(2);
+	MatrixXf difference(2,9);
+	difference.setZero();
+	difference(0, 0) = (((H(0,0)+e)*x(0) + H(0,1)*x(1) + H(0,2)*x(2))/w - Hx(0))/e;
+	difference(0, 1) = ((H(0, 0)*x(0) + (H(0, 1)+e)*x(1) + H(0, 2)*x(2)) / w - Hx(0)) / e;
+	difference(0, 2) = ((H(0, 0)*x(0) + H(0, 1)*x(1) + (H(0, 2)+e)*x(2)) / w - Hx(0)) / e;
+
+	difference(1, 3) = (((H(1, 0) + e)*x(0) + H(1, 1)*x(1) + H(1, 2)*x(2)) / w - Hx(1)) / e;
+	difference(1, 4) = ((H(1, 0)*x(0) + (H(1, 1) + e)*x(1) + H(1, 2)*x(2)) / w - Hx(1)) / e;
+	difference(1, 5) = ((H(1, 0)*x(0) + H(1, 1)*x(1) + (H(1, 2) + e)*x(2)) / w - Hx(1)) / e;
+
+	float w_e7 = 1 / ((H(2,0)+e)*x(0) + H(2,1)*x(1) + H(2,2)*x(2));
+	float w_e8 = 1 / (H(2, 0)*x(0) + (H(2, 1)+e)*x(1) + H(2, 2)*x(2));
+	float w_e9 = 1 / (H(2, 0)*x(0) + H(2, 1)*x(1) + (H(2, 2)+e)*x(2));
+
+	float x1 = H(0, 0)*x(0) + H(0, 1)*x(1) + H(0, 2)*x(2);
+	float x2 = H(1, 0)*x(0) + H(1, 1)*x(1) + H(1, 2)*x(2);
+	difference(0, 6) = (x1 / w_e7 - Hx(0)) / e;
+	difference(0, 7) = (x1 / w_e8 - Hx(0)) / e;
+	difference(0, 8) = (x1 / w_e9 - Hx(0)) / e;
+	difference(1, 6) = (x2 / w_e7 - Hx(1)) / e;
+	difference(1, 7) = (x2 / w_e8 - Hx(1)) / e;
+	difference(1, 8) = (x2 / w_e9 - Hx(1)) / e;
+
+	// Next, compute the Jacobian using Hartley and Zisserman's method,
+	// at x. 
+	MatrixXf J(2, 9);
+	J.setZero();
+	J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0)*x(2),
+		0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1)*x(2);
+	J /= w;
+
+	// finally, return the difference between these matrices. The difference should be vanishing
+	cout << "J: " << endl << J << endl;
+	cout << "Finite difference: " << endl << difference << endl;
+	cout << J - difference << endl;
 }
