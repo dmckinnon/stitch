@@ -99,16 +99,44 @@ int main(int argc, char** argv)
 	- Next on the list is Levenberg-Marquardt, and then blending,
 	  although I should get normalisation working first
     - Bundle adjustment isn't working, though I think I have the wrong Jacobian ... ?
+	- LM is minimising something, but I think the initial error is so wrong that we are stuck elsewhere
+	  Try to get a better initial homography. So try noramlisation
 	*/
 
-	// Finite diff test
-	/*Matrix3f Htest;
-	Htest << 0.987258, -0.0434489, 28.0799,
-		0.000847841, 0.957477, 5.57398,
-		6.94426e-07, -8.68033e-05, 1;
-	FiniteDiff(Htest);
+	// Point normalisation test
+	// Create four pairs of matching points, each pair the corner of a rectangle
+	// normalise them, and they should be a square
+	Point2f p1(0, 0);
+	Point2f p2(0, 2);
+	Point2f p3(3, 2);
+	Point2f p4(3, 0);
+	vector<pair<Feature, Feature> > testMatch;
+	Feature a1, b1, a2, b2, a3, b3, a4, b4;
+	a1.p = p1;
+	a2.p = p2;
+	a3.p = p3;
+	a4.p = p4;
+	b1.p = p1;
+	b2.p = p2;
+	b3.p = p3;
+	b4.p = p4;
+	testMatch.push_back(make_pair(a1, b1));
+	testMatch.push_back(make_pair(a2, b2));
+	testMatch.push_back(make_pair(a3, b3));
+	testMatch.push_back(make_pair(a4, b4));
+	auto matrices = ConvertPoints(testMatch);
 
-	return 0;*/
+	// points should be square
+	Vector3f a(p1.x, p1.y, 1);
+	Vector3f b(p2.x, p2.y, 1);
+	Vector3f c(p3.x, p3.y, 1);
+	Vector3f d(p4.x, p4.y, 1);
+	cout << "Converted points: " << endl << matrices.first * a << endl;
+	cout << endl << matrices.first*b << endl;
+	cout << endl << matrices.first*c << endl;
+	cout << endl << matrices.first*d << endl;
+
+	return 0;
 
 	/*
 	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
@@ -255,7 +283,7 @@ int main(int argc, char** argv)
 	cout << "Homography: \n" << H << std::endl;
 
 	// Refine the homography with bundle adjustment
-	BundleAdjustment(matches, H);
+	//BundleAdjustment(matches, H);
 
 	cout << "New homography: \n" << H << std::endl;
 
@@ -269,9 +297,8 @@ int main(int argc, char** argv)
 	waitKey(0);
 //#endif
 	// Alpha blending. Poisson blending looks good here
-
+	H;
 	// TODO: multiple images
-
 	return 0;
 }
 

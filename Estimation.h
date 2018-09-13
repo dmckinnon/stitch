@@ -15,6 +15,9 @@
 /* Estimation Functions */
 bool FindHomography(Eigen::Matrix3f& homography, const std::vector<std::pair<Feature, Feature> >& matches);
 
+// Normalise points
+std::pair<Eigen::Matrix3f, Eigen::Matrix3f> ConvertPoints(const std::vector<std::pair<Feature, Feature> >& matches);
+
 // Estimate Homography
 bool GetHomographyFromMatches(const std::vector<std::pair<cv::Point, cv::Point>> points, Eigen::Matrix3f& H);
 

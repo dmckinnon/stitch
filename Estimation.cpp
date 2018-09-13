@@ -53,7 +53,7 @@ void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 		i4 = rand() % max;
 	} while (i4 == i1 || i4 == i2 || i4 == i3);
 }
-//
+// Normalise points
 pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& matches)
 {
 	// For each point in first and second, collect the mean
@@ -86,8 +86,6 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 	secondStdDev.x = sqrt(secondStdDev.x);
 	secondStdDev.y = sqrt(secondStdDev.y);
 
-	// The first of the pair is the matrix for the second point;
-	// The second of the pair is the matrix for the first point.
 	Matrix3f conversionForSecondPoints;
 	conversionForSecondPoints << 1 / secondStdDev.x,             0.f        , secondAvg.x / secondStdDev.x,
 		                                  0.f      ,      1 / secondStdDev.y, secondAvg.y / secondStdDev.y,
@@ -97,7 +95,7 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 		                                  0.f      ,      1 / firstStdDev.y, firstAvg.y / firstStdDev.y,
 		                                  0.f      ,             0.f        ,           1.f;
 
-	return make_pair(conversionForSecondPoints, conversionForFirstPoints);
+	return make_pair(conversionForFirstPoints, conversionForSecondPoints);
 }
 // Actual function
 bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)
@@ -319,8 +317,9 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
 		VectorXf update(9);
-		Vector2f error_accum;
-		error_accum.setZero();
+		//Vector2f error_accum;
+		//error_accum.setZero();
+		float error_accum = 0;
 		MatrixXf JtJ(9, 9);
 		JtJ.setZero();
 		VectorXf Jte(9);
@@ -355,7 +354,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			JtJ += J.transpose() * J;
 			Jte += J.transpose() * e2;
 
-			error_accum += e2;
+			error_accum += e2.norm();
 		}
 
 		// Levenberg-Marquardt update
@@ -375,7 +374,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		// Test the update. If our error increased at all,
 		// cut out and we'll stop optimising.
 		// If the error decreases ... well, update the true H and keep going
-		float currError = error_accum.norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
+		float currError = error_accum;// .norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
 		if (currError < prevError)
 		{
 			// update and continue
