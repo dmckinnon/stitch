@@ -45,6 +45,7 @@ int main(int argc, char** argv)
 	For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
 	Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
 	Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
+http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 
 	TODO:
 	- Adaptive threshold for FAST features?2
