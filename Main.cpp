@@ -102,13 +102,13 @@ int main(int argc, char** argv)
 	*/
 
 	// Finite diff test
-	Matrix3f Htest;
+	/*Matrix3f Htest;
 	Htest << 0.987258, -0.0434489, 28.0799,
 		0.000847841, 0.957477, 5.57398,
 		6.94426e-07, -8.68033e-05, 1;
 	FiniteDiff(Htest);
 
-	return 0;
+	return 0;*/
 
 	/*
 	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
@@ -256,6 +256,8 @@ int main(int argc, char** argv)
 
 	// Refine the homography with bundle adjustment
 	BundleAdjustment(matches, H);
+
+	cout << "New homography: \n" << H << std::endl;
 
 	// Stitch the images together
 	pair<int, int> size = GetFinalImageSize(leftImage, rightImage, H);

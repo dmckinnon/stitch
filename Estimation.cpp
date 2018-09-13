@@ -314,7 +314,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 {
 
 	// L-M update parameter
-	float lambda = 0;// 0.001f;
+	float lambda =  0.001f;
 	float prevError = 100000000;// ErrorInHomography(matches, H);
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
@@ -341,6 +341,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			float w = Hx(2);
 			Hx /= w;
 			Vector3f e = xprime - Hx;
+			//e *= -1;
 			const Vector2f e2(e(0), e(1));
 
 			// Build the Jacobian
@@ -349,11 +350,6 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
 				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
 			J /= w;
-			// ,
-				//0, 0, 0, 0, 0, 0, 0, 0, 0, -xprime(2), -xprime(2), -xprime(2);
-			//J << -x(0), -x(1), -x(2), 0, 0, 0, 0, 0, 0,
-			//	0, 0, 0, -x(0), -x(1), -x(2), 0, 0, 0,
-			//	0, 0, 0, 0, 0, 0, -x(0), -x(1), -x(2);
 
 			// Accumulate
 			JtJ += J.transpose() * J;
@@ -370,7 +366,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		}
 
 		// Compute the update
-		update = JtJ.inverse() * -1 * Jte; // is there a negative here?
+		update = JtJ.inverse() * /*-1 **/ Jte; // is there a negative here?
 		Matrix3f updateToH;
 		updateToH << update(0), update(1), update(2),
 			         update(3), update(4), update(5),
@@ -379,23 +375,24 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		// Test the update. If our error increased at all,
 		// cut out and we'll stop optimising.
 		// If the error decreases ... well, update the true H and keep going
-		float currError = ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
+		float currError = error_accum.norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
 		if (currError < prevError)
 		{
 			// update and continue
 			
-			//lambda /= 10;
+			lambda /= 10;
 		}
 		else
 		{
-			//lambda *= 10;
-			//break;
+			lambda *= 10;
+			break;
 		}
+		cout << "Current error in BA: " << currError << endl;
 		prevError = currError;
-		cout << update << endl;
+		//cout << update << endl;
 		H += updateToH;
 		H /= H(2, 2);
-		cout << H << endl;
+		//cout << H << endl;
 	}
 }
 
@@ -425,7 +422,7 @@ void FiniteDiff(const Matrix3f& H)
 
 	float x1 = H(0, 0)*x(0) + H(0, 1)*x(1) + H(0, 2)*x(2);
 	float x2 = H(1, 0)*x(0) + H(1, 1)*x(1) + H(1, 2)*x(2);
-	difference(0, 6) = (x1 / w_e7 - Hx(0)) / e;//Hx(0)*(-x(0))*w_e7;//
+	difference(0, 6) = (x1 / w_e7 - Hx(0)) / e;
 	difference(0, 7) = (x1 / w_e8 - Hx(0)) / e;
 	difference(0, 8) = (x1 / w_e9 - Hx(0)) / e;
 	difference(1, 6) = (x2 / w_e7 - Hx(1)) / e;
