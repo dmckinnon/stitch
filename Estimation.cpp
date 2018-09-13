@@ -58,20 +58,21 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 {
 	// For each point in first and second, collect the mean
 	// and compute std deviation
+	unsigned int size = matches.size();
 	Point2f firstAvg(0.f, 0.f);
 	Point2f secondAvg(0.f, 0.f);
-	for (unsigned int i = 0; i < matches.size(); ++i)
+	for (unsigned int i = 0; i < size; ++i)
 	{
 		firstAvg += matches[i].first.p;
 		secondAvg += matches[i].second.p;
 	}
-	firstAvg /= (float)matches.size();
-	secondAvg /= (float)matches.size();
+	firstAvg /= (float)size;
+	secondAvg /= (float)size;
 
 	// Now compute std deviation
 	Point2f firstStdDev(0.f, 0.f);
 	Point2f secondStdDev(0.f, 0.f);
-	for (unsigned int i = 0; i < matches.size(); ++i)
+	for (unsigned int i = 0; i < size; ++i)
 	{
 		auto temp = matches[i].first.p - firstAvg;
 		firstStdDev += Point2f(temp.x*temp.x, temp.y*temp.y);
@@ -79,20 +80,20 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 		temp = matches[i].second.p - secondAvg;
 		secondStdDev += Point2f(temp.x*temp.x, temp.y*temp.y);
 	}
-	firstStdDev /= (float)matches.size();
-	secondStdDev /= (float)matches.size();
+	firstStdDev /= (float)size;
+	secondStdDev /= (float)size;
 	firstStdDev.x = sqrt(firstStdDev.x);
 	firstStdDev.y = sqrt(firstStdDev.y);
 	secondStdDev.x = sqrt(secondStdDev.x);
 	secondStdDev.y = sqrt(secondStdDev.y);
 
 	Matrix3f conversionForSecondPoints;
-	conversionForSecondPoints << 1 / secondStdDev.x,             0.f        , secondAvg.x / secondStdDev.x,
-		                                  0.f      ,      1 / secondStdDev.y, secondAvg.y / secondStdDev.y,
+	conversionForSecondPoints << 1 / secondStdDev.x,             0.f        , -1*secondAvg.x / secondStdDev.x,
+		                                  0.f      ,      1 / secondStdDev.y, -1*secondAvg.y / secondStdDev.y,
 		                                  0.f      ,             0.f        ,           1.f;
  	Matrix3f conversionForFirstPoints;
-	conversionForFirstPoints << 1 / firstStdDev.x,             0.f        , firstAvg.x / firstStdDev.x,
-		                                  0.f      ,      1 / firstStdDev.y, firstAvg.y / firstStdDev.y,
+	conversionForFirstPoints << 1 / firstStdDev.x,             0.f        , -1*firstAvg.x / firstStdDev.x,
+		                                  0.f      ,      1 / firstStdDev.y, -1*firstAvg.y / firstStdDev.y,
 		                                  0.f      ,             0.f        ,           1.f;
 
 	return make_pair(conversionForFirstPoints, conversionForSecondPoints);

@@ -107,10 +107,10 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 	// Point normalisation test
 	// Create four pairs of matching points, each pair the corner of a rectangle
 	// normalise them, and they should be a square
-	Point2f p1(0, 0);
-	Point2f p2(0, 2);
-	Point2f p3(3, 2);
-	Point2f p4(3, 0);
+	Point2f p1(0, 0); // unit square should return unit square?
+	Point2f p2(0, 2); // 0,2
+	Point2f p3(3, 2); // 3,2
+	Point2f p4(3, 0); // 3,0
 	vector<pair<Feature, Feature> > testMatch;
 	Feature a1, b1, a2, b2, a3, b3, a4, b4;
 	a1.p = p1;
