@@ -102,22 +102,18 @@ int main(int argc, char** argv)
 	*/
 
 	// Finite diff test
-	/*Matrix3f Htest;
+	Matrix3f Htest;
 	Htest << 0.987258, -0.0434489, 28.0799,
 		0.000847841, 0.957477, 5.57398,
 		6.94426e-07, -8.68033e-05, 1;
 	FiniteDiff(Htest);
 
-	return 0;*/
+	return 0;
 
 	/*
 	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
            0            0            0  1.54972e-05  1.54972e-05 -3.21865e-05     -12.9533     -12.9533     -12.9533
 	*/
-
-    // For debuggging
-	std::string debugWindowName = "debug image";
-	namedWindow(debugWindowName);
 
 	// pull in both images
 	// TODO: Make these command line args
@@ -127,6 +123,10 @@ int main(int argc, char** argv)
 	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg", IMREAD_GRAYSCALE);
 	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
 	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
+
+	// For debuggging
+	std::string debugWindowName = "debug image";
+	namedWindow(debugWindowName);
 
 	// Find features in each image
 	vector<Feature> leftFeatures;

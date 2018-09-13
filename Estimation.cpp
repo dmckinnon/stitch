@@ -160,6 +160,7 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 	https://blog.statsbot.co/singular-value-decomposition-tutorial-52c695315254
 	https://cims.nyu.edu/~donev/Teaching/NMI-Fall2010/Lecture5.handout.pdf
 	https://eigen.tuxfamily.org/dox/group__SVD__Module.html
+	https://www.uio.no/studier/emner/matnat/its/UNIK4690/v16/forelesninger/lecture_4_3-estimating-homographies-from-feature-correspondences.pdf
 
 	Find the homography for four sets of corresponding points
 
@@ -369,7 +370,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		}
 
 		// Compute the update
-		update = JtJ.inverse() * Jte;
+		update = JtJ.inverse() * -1 * Jte; // is there a negative here?
 		Matrix3f updateToH;
 		updateToH << update(0), update(1), update(2),
 			         update(3), update(4), update(5),
@@ -408,10 +409,6 @@ void FiniteDiff(const Matrix3f& H)
 	float w = Hx(2);
 	Hx /= w;
 	float e = 0.01f;
-	Matrix3f epsilon;
-	epsilon.setConstant(e);
-	Vector3f Hx_plus_e = (H + epsilon)*x;
-	//Hx_plus_e /= Hx_plus_e(2);
 	MatrixXf difference(2,9);
 	difference.setZero();
 	difference(0, 0) = (((H(0,0)+e)*x(0) + H(0,1)*x(1) + H(0,2)*x(2))/w - Hx(0))/e;
@@ -422,13 +419,13 @@ void FiniteDiff(const Matrix3f& H)
 	difference(1, 4) = ((H(1, 0)*x(0) + (H(1, 1) + e)*x(1) + H(1, 2)*x(2)) / w - Hx(1)) / e;
 	difference(1, 5) = ((H(1, 0)*x(0) + H(1, 1)*x(1) + (H(1, 2) + e)*x(2)) / w - Hx(1)) / e;
 
-	float w_e7 = 1 / ((H(2,0)+e)*x(0) + H(2,1)*x(1) + H(2,2)*x(2));
-	float w_e8 = 1 / (H(2, 0)*x(0) + (H(2, 1)+e)*x(1) + H(2, 2)*x(2));
-	float w_e9 = 1 / (H(2, 0)*x(0) + H(2, 1)*x(1) + (H(2, 2)+e)*x(2));
+	float w_e7 = ((H(2,0)+e)*x(0) + H(2,1)*x(1) + H(2,2)*x(2));
+	float w_e8 = (H(2, 0)*x(0) + (H(2, 1)+e)*x(1) + H(2, 2)*x(2));
+	float w_e9 = (H(2, 0)*x(0) + H(2, 1)*x(1) + (H(2, 2)+e)*x(2));
 
 	float x1 = H(0, 0)*x(0) + H(0, 1)*x(1) + H(0, 2)*x(2);
 	float x2 = H(1, 0)*x(0) + H(1, 1)*x(1) + H(1, 2)*x(2);
-	difference(0, 6) = (x1 / w_e7 - Hx(0)) / e;
+	difference(0, 6) = (x1 / w_e7 - Hx(0)) / e;//Hx(0)*(-x(0))*w_e7;//
 	difference(0, 7) = (x1 / w_e8 - Hx(0)) / e;
 	difference(0, 8) = (x1 / w_e9 - Hx(0)) / e;
 	difference(1, 6) = (x2 / w_e7 - Hx(1)) / e;
