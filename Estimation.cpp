@@ -31,11 +31,10 @@ using namespace Eigen;
 // Support functions
 void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
 {
-	// Initialise RNG
-	//srand(time(NULL));
+	
 
 	// DEBUG
-	srand(5);
+	//srand(5);
 
 	i1 = rand() % max;
 	do
@@ -99,8 +98,28 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 	return make_pair(conversionForFirstPoints, conversionForSecondPoints);
 }
 // Actual function
-bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& matches)
+bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches)
 {
+	// Initialise RNG
+	srand(time(NULL));
+
+	// Get normalisation matrices, and normalise all points in the matches
+	auto normalisationMatrixPair = ConvertPoints(matches);
+	for (unsigned int i = 0; i < matches.size(); ++i)
+	{
+		auto p1 = matches[i].first.p;
+		Vector3f v1(p1.x, p1.y, 1);
+		auto v1Prime = normalisationMatrixPair.first * v1;
+		matches[i].first.p.x = v1Prime(0);
+		matches[i].first.p.y = v1Prime(1);
+
+		auto p2 = matches[i].second.p;
+		Vector3f v2(p2.x, p2.y, 1);
+		auto v2Prime = normalisationMatrixPair.second * v2;
+		matches[i].second.p.x = v2Prime(0);
+		matches[i].second.p.y = v2Prime(1);
+	}
+
 	// RANSAC
 	int maxInliers = 0;
 	Matrix3f bestH;
@@ -141,11 +160,15 @@ bool FindHomography(Matrix3f& homography, const vector<pair<Feature,Feature> >& 
 
 	if (maxInliers != 0)
 	{
-		homography = bestH;
+		cout << "normalised homography: " << endl << bestH << endl;
+		// convert H back to regular coords from normalised coords
+		homography = normalisationMatrixPair.first.inverse() * bestH * normalisationMatrixPair.second;
+		cout << "unnormalised homography: " << endl << homography << endl;
+		// renormalise
+		homography /= homography(2, 2);
+			
 		return true;
 	}
-
-	// TODO: Bundle Adjustment
 
 	// We failed to find anything good
 	return false;
@@ -198,7 +221,6 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	{
 		auto& p = points[i];
 
-		// normalise the points with the matrices provided
 		auto secondPoint = Vector3f(p.second.x, p.second.y, 1.f); // left
 		auto firstPoint = Vector3f(p.first.x, p.first.y, 1.f); // right
 

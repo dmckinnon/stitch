@@ -102,12 +102,13 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
     - Bundle adjustment isn't working, though I think I have the wrong Jacobian ... ?
 	- LM is minimising something, but I think the initial error is so wrong that we are stuck elsewhere
 	  Try to get a better initial homography. So try noramlisation
+	- normalisation works, bundle adjsutment is still bad
 	*/
 
 	// Point normalisation test
 	// Create four pairs of matching points, each pair the corner of a rectangle
 	// normalise them, and they should be a square
-	Point2f p1(0, 0); // unit square should return unit square?
+	/*Point2f p1(0, 0); // unit square should return unit square?
 	Point2f p2(0, 2); // 0,2
 	Point2f p3(3, 2); // 3,2
 	Point2f p4(3, 0); // 3,0
@@ -137,7 +138,7 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 	cout << endl << matrices.first*c << endl;
 	cout << endl << matrices.first*d << endl;
 
-	return 0;
+	return 0;*/
 
 	/*
 	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
@@ -284,7 +285,7 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 	cout << "Homography: \n" << H << std::endl;
 
 	// Refine the homography with bundle adjustment
-	//BundleAdjustment(matches, H);
+	BundleAdjustment(matches, H);
 
 	cout << "New homography: \n" << H << std::endl;
 

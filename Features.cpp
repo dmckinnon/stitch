@@ -8,7 +8,7 @@ using namespace std;
 #define FAST_SPACING 3
 #define THRESH 30
 #define ST_WINDOW 3
-#define ST_THRESH 25000.f
+#define ST_THRESH 22000.f
 #define NMS_WINDOW 2
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
