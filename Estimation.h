@@ -12,6 +12,9 @@
 #define POSITIONAL_UNCERTAINTY 0.1f
 #define MAX_BA_ITERATIONS 20
 
+#define HUBER_K 1.345f
+#define TUKEY_K 4.685
+
 /* Estimation Functions */
 bool FindHomography(Eigen::Matrix3f& homography, std::vector<std::pair<Feature, Feature> > matches);
 
@@ -26,6 +29,10 @@ int EvaluateHomography(const std::vector<std::pair<Feature, Feature> >& matches,
 
 // Bundle Adjustment
 void BundleAdjustment(const std::vector<std::pair<Feature, Feature> >& matches, Eigen::Matrix3f& H);
+
+// Robust cost functions
+void Huber(const float& e, const float& stddev, float& objectiveValue, float& weight);
+void Tukey(const float& e, const float& stddev, float& objectiveValue, float& weight);
 
 // Unit test for Jacobians
 void FiniteDiff(const Eigen::Matrix3f& H);

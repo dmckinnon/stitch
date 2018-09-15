@@ -299,22 +299,26 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 	return numInliers;
 }
 
-
 /*
 	Bundle Adjustment
 	http://www.cs.unc.edu/~marc/tutorial/node159.html
 	https://engineering.purdue.edu/kak/computervision/ECE661.08/solution/hw5_s2.pdf
 
 	The formula for J comes from Multiple View Geometry, page 146, equ. 5.11
-	As of now, I don't understand it. 
 
 	Here is an explanation and a derivation. This also explains how to get the covariance
 	I think
 	https://pdfs.semanticscholar.org/66e4/283c28a2a93c4d4674f4213e1e9f67cfc737.pdf
 
+	Ethan Eade on optimisation:
+	http://ethaneade.com/optimization.pdf
 
 	We ignore covariance for now
 
+	When the outlier error is large, we use Huber. 
+	After this reduces and we want to quickly converge, we switch to Tukey. 
+	These have the same function prototypes, so we just implement this as a cost
+	function pointer that is swapped out.
 */
 // Helper functions
 float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Matrix3f& H)
@@ -424,6 +428,52 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		//prevError = currError;
 		//cout << update << endl;
 		
+	}
+}
+
+/*
+	Huber cost function and Jacobian for the optimisation process. 
+	We use a robust cost function to deal with outliers as our data begin too far
+	from the optimal point and I suspect optimisation is getting stuck in a local minimum elsewhere.
+
+	https://onlinelibrary.wiley.com/doi/pdf/10.1002/pamm.201010258
+	Ethan Eade: http://ethaneade.com/optimization.pdf
+	Introduction to loss functions: https://blog.algorithmia.com/introduction-to-loss-functions/
+	Robust estimators: http://users.stat.umn.edu/~sandy/courses/8053/handouts/robust.pdf
+
+	We may want to try Tukey as well. From the sound of it, you use Huber to get vaguely close 
+	and then use Tukey to really optimise it finely ... let's just try Huber. 
+
+	So Tukey would weight too many outliers zero, and not get enough data, so it only works on a
+	good inlier set. 
+	Huber still weights outliers and can work with it, but is slow to finely converge.
+*/
+void Huber(const float& e, const float& stddev, float& objectiveValue, float& weight)
+{
+	float k = HUBER_K * stddev;
+	if (abs(e) <= k)
+	{
+		objectiveValue = 0.5f*e*e;
+		weight = 1.f;
+	}
+	else
+	{
+		objectiveValue = k * abs(e) - 0.5f*k*k;
+		weight = k / abs(e);
+	}
+}
+void Tukey(const float& e, const float& stddev, float& objectiveValue, float& weight)
+{
+	float k = TUKEY_K * stddev;
+	if (abs(e) <= k)
+	{
+		objectiveValue = (k * k / 6.f) * (1 - pow(1.f - pow(e / k, 2),3));
+		weight = pow(1.f - pow(e / k, 2), 2);
+	}
+	else
+	{
+		objectiveValue = k * k / 6.f;
+		weight = 0;
 	}
 }
 
