@@ -27,7 +27,6 @@ int main(int argc, char** argv)
 	- applying transformations to images  - actual stitching
 
 	Also:
-	- 
 	- bundle adjustment - yesss
 	- alpha blending - poisson blending
 	- using more than two views - yesss
@@ -45,21 +44,19 @@ int main(int argc, char** argv)
 	For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
 	Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
 	Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
-http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
+    http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 
 	TODO:
-	- Adaptive threshold for FAST features?2
+	- Adaptive threshold for FAST features?
 	- Need to tweak threshold for Shi Tomasi
 	- Tweak RANSAC threshold
-	- images as command-line args
 	- error handling? Eh
 	- Cleaning and commentary
-	- fix normalisation scaling
 	- Update levenberg marquardt parameter
 
 
 	Issues:
-	- homography estimation is biased
+	- Levenberg marquardt gets stuck?
 
 
 	Log:
@@ -103,57 +100,20 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 	- LM is minimising something, but I think the initial error is so wrong that we are stuck elsewhere
 	  Try to get a better initial homography. So try noramlisation
 	- normalisation works, bundle adjsutment is still bad
+	- Try a robust cost function like Huber or Tukey. Ethan Eade is a good source here
 	*/
 
-	// Point normalisation test
-	// Create four pairs of matching points, each pair the corner of a rectangle
-	// normalise them, and they should be a square
-	/*Point2f p1(0, 0); // unit square should return unit square?
-	Point2f p2(0, 2); // 0,2
-	Point2f p3(3, 2); // 3,2
-	Point2f p4(3, 0); // 3,0
-	vector<pair<Feature, Feature> > testMatch;
-	Feature a1, b1, a2, b2, a3, b3, a4, b4;
-	a1.p = p1;
-	a2.p = p2;
-	a3.p = p3;
-	a4.p = p4;
-	b1.p = p1;
-	b2.p = p2;
-	b3.p = p3;
-	b4.p = p4;
-	testMatch.push_back(make_pair(a1, b1));
-	testMatch.push_back(make_pair(a2, b2));
-	testMatch.push_back(make_pair(a3, b3));
-	testMatch.push_back(make_pair(a4, b4));
-	auto matrices = ConvertPoints(testMatch);
-
-	// points should be square
-	Vector3f a(p1.x, p1.y, 1);
-	Vector3f b(p2.x, p2.y, 1);
-	Vector3f c(p3.x, p3.y, 1);
-	Vector3f d(p4.x, p4.y, 1);
-	cout << "Converted points: " << endl << matrices.first * a << endl;
-	cout << endl << matrices.first*b << endl;
-	cout << endl << matrices.first*c << endl;
-	cout << endl << matrices.first*d << endl;
-
-	return 0;*/
-
-	/*
-	 6.31809e-05  6.31809e-05  6.31809e-05            0            0            0      -57.5527     -57.5527     -57.5527
-           0            0            0  1.54972e-05  1.54972e-05 -3.21865e-05     -12.9533     -12.9533     -12.9533
-	*/
-
-	// pull in both images
-	// TODO: Make these command line args
-	//Mat leftImage = imread("C:\\Users\\d_mcc\\OneDrive\\Pictures\\test2.JPG", IMREAD_GRAYSCALE);
-	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg", IMREAD_GRAYSCALE);
-	Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\left.jpg", IMREAD_GRAYSCALE);
-	Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\lion\\right.jpg", IMREAD_GRAYSCALE);
-	//Mat leftImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-00.png");
-	//Mat rightImage = imread("C:\\Users\\d_mcc\\source\\adobe_panoramas\\data\\goldengate\\goldengate-01.png");
-
+	// pull in both images. The first is the left and the second is the right
+	// In theory it doesn't actually matter though
+	if (argc < 3)
+	{
+		cout << "Missing command line arguments!" << endl;
+		cout << "Format: panorama.exe <image1.jpg> <image2.jpg>" << endl;
+		exit(1);
+	}
+	Mat leftImage = imread(argv[1], IMREAD_GRAYSCALE);
+	Mat rightImage = imread(argv[2], IMREAD_GRAYSCALE);
+	
 	// For debuggging
 	std::string debugWindowName = "debug image";
 	namedWindow(debugWindowName);
@@ -285,7 +245,7 @@ http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
 	cout << "Homography: \n" << H << std::endl;
 
 	// Refine the homography with bundle adjustment
-	BundleAdjustment(matches, H);
+	//BundleAdjustment(matches, H);
 
 	cout << "New homography: \n" << H << std::endl;
 

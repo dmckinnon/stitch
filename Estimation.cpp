@@ -282,10 +282,13 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 		// Normalise
 		Hx /= Hx(2);
 
+		Vector3f Hxprime = H.inverse() * xprime;
+		Hxprime /= Hxprime(2);
+
 		// Use total reprojection error
 		// This is L2(x' - Hx) + L2(x - Hinverse x')
-		auto projectiveDiff = xprime - H * x;
-		auto reprojectiveDiff = x - H.inverse() * xprime;
+		auto projectiveDiff = xprime - Hx;
+		auto reprojectiveDiff = x - Hxprime;
 		float totalError = projectiveDiff.norm() + reprojectiveDiff.norm();
 		if (totalError < POSITIONAL_UNCERTAINTY * RANSAC_INLIER_MULTIPLER)
 		{
@@ -324,8 +327,8 @@ float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Ma
 
 		// Get the error term
 		auto projectiveDiff = xprime - H * x;
-		auto reprojectiveDiff = x - H.inverse() * xprime;
-		error += projectiveDiff.norm() + reprojectiveDiff.norm();
+		//auto reprojectiveDiff = x - H.inverse() * xprime;
+		error += projectiveDiff.norm();// +reprojectiveDiff.norm();
 	}
 
 	return error;
@@ -335,7 +338,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 {
 
 	// L-M update parameter
-	float lambda =  0.001f;
+	float lambda = 0;// .001f;
 	float prevError = 100000000;// ErrorInHomography(matches, H);
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
@@ -393,28 +396,34 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		updateToH << update(0), update(1), update(2),
 			         update(3), update(4), update(5),
 			         update(6), update(7), update(8);
+		//updateToH /= updateToH(2,2);
 
 		// Test the update. If our error increased at all,
 		// cut out and we'll stop optimising.
 		// If the error decreases ... well, update the true H and keep going
-		float currError = error_accum;// .norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
+		//Matrix3f newH = H + updateToH;
+		//newH /= newH(2, 2);
+		float currError = error_accum;// ErrorInHomography(matches, newH);// error_accum;// .norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
 		if (currError < prevError)
 		{
 			// update and continue
 			
 			lambda /= 10;
+			prevError = currError;
+
+			H += updateToH;
+			H /= H(2, 2);
+			cout << H << endl;
 		}
 		else
 		{
 			lambda *= 10;
-			break;
+			//break;
 		}
-		cout << "Current error in BA: " << currError << endl;
-		prevError = currError;
+		cout << "CurrError: " << currError << " error_accum:  " << error_accum << " and lambda is " << lambda << endl;
+		//prevError = currError;
 		//cout << update << endl;
-		H += updateToH;
-		H /= H(2, 2);
-		//cout << H << endl;
+		
 	}
 }
 
