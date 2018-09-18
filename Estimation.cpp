@@ -342,10 +342,12 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 {
 
 	// L-M update parameter
-	float lambda = 0;// .001f;
+	float lambda =  .001f;
 	float prevError = 100000000;// ErrorInHomography(matches, H);
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
+		unsigned int i = 0;
+
 		VectorXf update(9);
 		//Vector2f error_accum;
 		//error_accum.setZero();
@@ -355,10 +357,73 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		VectorXf Jte(9);
 		Jte.setZero();
 
-		
+		/*void(*costFunc)(const float&, const float&, float&, float&);
+
+		// Get error vector, std dev vector, and Hx vector
+		vector<Vector2f> errors;
+		float avg;
+		float stddev;
+		vector<Vector3f> hxVals;
+		for (i = 0; i < matches.size(); ++i)
+		{
+			// As above, first is x, the point on the right,
+			// and second is x', the point on the left
+			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
+			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
+
+			// Get the error term
+			Vector3f Hx = H * x;
+			float w = Hx(2);
+			Hx /= w;
+			Vector3f e = xprime - Hx;
+			Vector2f e2(e(0), e(1));
+			
+			errors.push_back(e2);
+			hxVals.push_back(Hx);
+
+			avg += e2.norm();
+		}
+		avg /= matches.size();
+
+		// Now compute the std dev
+		for (i = 0; i < errors.size(); ++i)
+		{
+			stddev += pow(errors[i].norm() - avg, 2);
+		}
+		stddev = sqrt(stddev);
+
+		// determine which cost function
+		costFunc = &Huber;
+
+		// loop over these and compute cost function,
+		// then accumulate jacobians
+		assert(errors.size() == hxVals.size());
+		for (i = 0; i < errors.size(); ++i)
+		{
+			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
+			auto& Hx = hxVals[i];
+			float w = (H * x)(2);
+
+			// Apply cost function
+			float costWeight = 0.f;
+			float objectiveValue = 0.f;
+			costFunc(errors[i].norm(), stddev, objectiveValue, costWeight);
+
+			// Build the Jacobian
+			MatrixXf J(2, 9);
+			J.setZero();
+			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
+				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
+			J /= w;
+
+			// Multiply by cost function weight
+
+		}*/
+
+		// TODO: implement levenberg marquardt update properly
 
 		// Over all feature points
-		for (unsigned int i = 0; i < matches.size(); ++i)
+		for (i = 0; i < matches.size(); ++i)
 		{
 			// As above, first is x, the point on the right,
 			// and second is x', the point on the left
@@ -389,7 +454,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 		// Levenberg-Marquardt update
 		// TODO: pick a lambda, update lambda
-		for (int i = 0; i < JtJ.rows(); ++i)
+		for (i = 0; i < JtJ.rows(); ++i)
 		{
 			JtJ(i, i) += lambda *JtJ(i, i);
 		}
@@ -447,6 +512,14 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 	So Tukey would weight too many outliers zero, and not get enough data, so it only works on a
 	good inlier set. 
 	Huber still weights outliers and can work with it, but is slow to finely converge.
+
+	For the parameters k, smaller values of k produce more resistance to outliers so these can
+	be tuned as necessary. 
+	Usually a robust measure of spread is used in preference to the standard deviation of
+	the residuals. For example, a common approach is to take sigma = MAR/0.6745, where MAR is
+	the median absolute residual. This is because std dev is computationally expensive, requiring
+	square roots and multiple passes over the data. I'm going to use the true std dev, because here
+	I don't care about computation time.
 */
 void Huber(const float& e, const float& stddev, float& objectiveValue, float& weight)
 {

@@ -7,10 +7,10 @@
 #include "Features.h"
 #include <Eigen/Dense>
 
-#define MAX_RANSAC_ITERATIONS 1000
+#define MAX_RANSAC_ITERATIONS 2000
 #define RANSAC_INLIER_MULTIPLER 2.447f
 #define POSITIONAL_UNCERTAINTY 0.1f
-#define MAX_BA_ITERATIONS 20
+#define MAX_BA_ITERATIONS 10
 
 #define HUBER_K 1.345f
 #define TUKEY_K 4.685

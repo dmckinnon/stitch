@@ -59,6 +59,11 @@ uchar BilinearInterpolatePixel(const Mat& img, const float& x, const float& y)
 	uchar val = ((y2-y)/(y2-y1))*y1Val + ((y-y1)/(y2-y1))*y2Val;
 	return val;
 }
+// Function to composite just a portion of the image
+void projectImagePortion()
+{
+
+}
 // Actual function
 void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, Mat& composite)
 {
@@ -82,6 +87,7 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 	int img1XOffset = (int)abs(min(0.f, min(tl(0), bl(0))));
 
 	// Add the first image to the centre of the new big Mat
+	// multithread - this takes 52 milliseconds so eh
 	for (unsigned int y = 0; y < img1.rows; ++y)
 	{
 		for (unsigned int x = 0; x < img1.cols; ++x)
@@ -96,6 +102,14 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 	// In the original Mat, if this clashes with a point in the original image,
 	// take the average and place that there
 	// TODO: add blending at this stage
+	// TODO: multithread
+	// To project the other image into the first in a parallel manner, we run four threads.
+	// Each thread takes a strip of the image and performs the same function on it
+	// For this to work, we create four separate Mats and send these off, and then put them
+	// together at the end. Copying one mat to another is fairly cheap; what makes the composing
+	// expensive is the reprojection and bilinear interpolation at each pixel
+	// This is currently unimplemented, but an intended feature just for speed cos i don't like
+	// waiting a minute for my image
 	for (unsigned int y = 0; y < composite.rows; ++y)
 	{
 		for (unsigned int x = 0; x < composite.cols; ++x)
@@ -117,4 +131,5 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 			}
 		}
 	}
+
 }

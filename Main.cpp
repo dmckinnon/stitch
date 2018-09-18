@@ -245,7 +245,7 @@ int main(int argc, char** argv)
 	cout << "Homography: \n" << H << std::endl;
 
 	// Refine the homography with bundle adjustment
-	//BundleAdjustment(matches, H);
+	BundleAdjustment(matches, H);
 
 	cout << "New homography: \n" << H << std::endl;
 
