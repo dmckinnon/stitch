@@ -671,6 +671,8 @@ std::vector<std::pair<Feature, Feature> > MatchDescriptors(std::vector<Feature> 
 		if (ratio < NN_RATIO)
 		{
 			// Create matches with (right, left) structure
+			f.distFromBestMatch = minDist;
+			list2[closest].distFromBestMatch = minDist;
 			std::pair<Feature, Feature> match;
 			match = std::make_pair(f, list2[closest]);
 			matches.push_back(match);

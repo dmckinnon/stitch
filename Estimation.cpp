@@ -29,28 +29,30 @@ using namespace Eigen;
 	NOTE: We scale and shift the points to have 0 mean and std dev of 1
 */
 // Support functions
-void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max)
+void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max, const vector<pair<Feature, Feature> >& matches)
 {
-	
+	// if the match scores at any of the indices are above a certain threshold, keep looking
 
 	// DEBUG
 	//srand(5);
-
-	i1 = rand() % max;
+	//do {
+		i1 = rand() % max;
+		//cout << "Match score: " << matches[i1].first.distFromBestMatch << endl;
+	//} while (matches[i1].first.distFromBestMatch > MATCH_THRESHOLD);
 	do
 	{
 		i2 = rand() % max;
-	} while (i2 == i1);
+	} while (i2 == i1);// || matches[i2].first.distFromBestMatch > MATCH_THRESHOLD);
 
 	do
 	{
 		i3 = rand() % max;
-	} while (i3 == i1 || i3 == i2);
+	} while (i3 == i1 || i3 == i2);// || matches[i3].first.distFromBestMatch > MATCH_THRESHOLD);
 
 	do
 	{
 		i4 = rand() % max;
-	} while (i4 == i1 || i4 == i2 || i4 == i3);
+	} while (i4 == i1 || i4 == i2 || i4 == i3);// || matches[i4].first.distFromBestMatch > MATCH_THRESHOLD);
 }
 // Normalise points
 pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& matches)
@@ -124,12 +126,13 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 	int maxInliers = 0;
 	Matrix3f bestH;
 	int numMatches = matches.size();
+	vector<pair<Feature, Feature> > inlierSet;
 	for (int k = 0; k < MAX_RANSAC_ITERATIONS; ++k)
 	{
 		// Pick four random matches by generating four random indices
 		// and ensuring they are not equal
 		int i1, i2, i3, i4;
-		GetRandomFourIndices(i1, i2, i3, i4, numMatches);
+		GetRandomFourIndices(i1, i2, i3, i4, numMatches, matches);
 		
 		// Get the points for those features and generate the homography
 		// Since we match from left to right, and the homography goes from right
@@ -146,10 +149,11 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 		// Test the homography with all points
 		// Normalise homography
 		H /= H(2, 2);
-		int inliers = EvaluateHomography(matches, H);
-		if (inliers > maxInliers)
+		auto set = EvaluateHomography(matches, H);
+		if (set.size() > maxInliers)
 		{
-			maxInliers = inliers;
+			maxInliers = inlierSet.size();
+			inlierSet = set;
 			bestH = H;
 		}
 
@@ -161,6 +165,14 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 	if (maxInliers != 0)
 	{
 		cout << "normalised homography: " << endl << bestH << endl;
+
+
+		// Now bundle adjust on just the inlier set
+		cout << "Bundle adjustment" << endl;
+		BundleAdjustment(inlierSet, bestH);
+		cout << "Refined homography: " << bestH << endl;
+
+		
 		// convert H back to regular coords from normalised coords
 		homography = normalisationMatrixPair.first.inverse() * bestH * normalisationMatrixPair.second;
 		cout << "unnormalised homography: " << endl << homography << endl;
@@ -266,10 +278,12 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	From this, sort and get the median, then the average. Return the median, 
 	as we want to be robust to outliers. 
 */
-int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
+vector<pair<Feature, Feature> > EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
 {
 	vector<float> diffs;
 	int numInliers = 0;
+	float allError = 0;
+	vector<pair<Feature, Feature>> inlierSet;
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		// Convert both points to Eigen points, in normalised homogeneous coords
@@ -290,13 +304,16 @@ int EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matr
 		auto projectiveDiff = xprime - Hx;
 		auto reprojectiveDiff = x - Hxprime;
 		float totalError = projectiveDiff.norm() + reprojectiveDiff.norm();
+		//std::cout << totalError << endl;
 		if (totalError < POSITIONAL_UNCERTAINTY * RANSAC_INLIER_MULTIPLER)
 		{
 			numInliers++;
+			inlierSet.push_back(matches[i]);
 		}
+		allError += totalError;
 	}
 
-	return numInliers;
+	return inlierSet;
 }
 
 /*
@@ -344,9 +361,45 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 	// L-M update parameter
 	float lambda =  .001f;
 	float prevError = 100000000;// ErrorInHomography(matches, H);
+	cout << "Bundling on " << matches.size() << " points" << endl;
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
 		unsigned int i = 0;
+
+
+		// Get error vector, std dev vector, and Hx vector
+		/*vector<Vector2f> errors;
+		float avg = 0;
+		float stddev = 0;
+		vector<Vector3f> hxVals;
+		for (i = 0; i < matches.size(); ++i)
+		{
+			// As above, first is x, the point on the right,
+			// and second is x', the point on the left
+			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
+			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
+
+			// Get the error term
+			Vector3f Hx = H * x;
+			float w = Hx(2);
+			Hx /= w;
+			Vector3f e = xprime - Hx;
+			Vector2f e2(e(0), e(1));
+
+			errors.push_back(e2);
+			hxVals.push_back(Hx);
+
+			avg += e2.norm();
+		}
+		avg /= matches.size();
+
+		// Now compute the std dev
+		for (i = 0; i < errors.size(); ++i)
+		{
+			stddev += pow(errors[i].norm() - avg, 2);
+		}
+		stddev = sqrt(stddev);*/
+
 
 		VectorXf update(9);
 		//Vector2f error_accum;
@@ -357,12 +410,98 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		VectorXf Jte(9);
 		Jte.setZero();
 
+		for (i = 0; i < matches.size(); ++i)
+		{
+			// As above, first is x, the point on the right,
+			// and second is x', the point on the left
+			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
+			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
+
+			// Get the error term
+			Vector3f Hx = H * x;
+			float w = Hx(2);
+			Hx /= w;
+			Vector3f e = xprime - Hx;
+			const Vector2f e2(e(0), e(1));
+
+			float costWeight = 1.f;
+			/*float objectiveValue = 0.f;
+			if (i > 5)
+				Huber(errors[i].norm(), stddev, objectiveValue, costWeight);
+			else
+				Tukey(errors[i].norm(), stddev, objectiveValue, costWeight);*/
+
+			// Build the Jacobian
+			MatrixXf J(2, 9);
+			J.setZero();
+			// We've confirmed by Finite Diff that this Jacobian is correct
+			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
+				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
+			J /= w;
+
+			// Accumulate
+			JtJ += costWeight * J.transpose() * J;
+			Jte += costWeight * J.transpose() * e2;
+
+			error_accum += e2.norm();// objectiveValue;// e2.norm();
+		}
+
+		// Levenberg-Marquardt update
+		// TODO: pick a lambda, update lambda
+		for (i = 0; i < JtJ.rows(); ++i)
+		{
+			JtJ(i, i) += lambda * JtJ(i, i);
+		}
+
+		// Compute the update
+		update = JtJ.inverse() /* -1*/ * Jte; // is there a negative here?
+		Matrix3f updateToH;
+		updateToH << update(0), update(1), update(2),
+			update(3), update(4), update(5),
+			update(6), update(7), update(8);
+
+		float currError = error_accum;
+
+		if (currError < BA_THRESHOLD)
+		{
+			cout << "Error is " << currError << " which is below threshold - early cutoff" << endl;
+			break;
+		}
+		cout << "CurrError: " << currError << " previous error:  " << prevError << " and lambda is " << lambda << endl;
+		if (currError < prevError)
+		{
+			// update and continue
+			lambda /= 10;
+			prevError = currError;
+
+			cout << "Update: " << endl << updateToH << endl;
+
+			H += updateToH;
+			H /= H(2, 2);
+			cout << "H: " << endl << H << endl;
+		}
+		else
+		{
+			lambda *= 10;
+		}
+
+		
+	}
+	return;
+		
+		
+		
+		
+		
+		
+		
+		
 		/*void(*costFunc)(const float&, const float&, float&, float&);
 
 		// Get error vector, std dev vector, and Hx vector
 		vector<Vector2f> errors;
-		float avg;
-		float stddev;
+		float avg = 0;
+		float stddev = 0;
 		vector<Vector3f> hxVals;
 		for (i = 0; i < matches.size(); ++i)
 		{
@@ -391,9 +530,8 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			stddev += pow(errors[i].norm() - avg, 2);
 		}
 		stddev = sqrt(stddev);
-
-		// determine which cost function
-		costFunc = &Huber;
+		*/
+		/*
 
 		// loop over these and compute cost function,
 		// then accumulate jacobians
@@ -419,8 +557,14 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			// Multiply by cost function weight
 
 		}*/
-
+		/*
 		// TODO: implement levenberg marquardt update properly
+
+		// determine which cost function
+		if (i < 5)
+			costFunc = &Huber;
+		else
+			costFunc = &Tukey;
 
 		// Over all feature points
 		for (i = 0; i < matches.size(); ++i)
@@ -438,6 +582,10 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			//e *= -1;
 			const Vector2f e2(e(0), e(1));
 
+			float objectiveValue = 0;
+			float weight = 0;
+			costFunc(e2.norm(), stddev, objectiveValue, weight);
+
 			// Build the Jacobian
 			MatrixXf J(2, 9);
 			J.setZero();
@@ -446,10 +594,10 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			J /= w;
 
 			// Accumulate
-			JtJ += J.transpose() * J;
-			Jte += J.transpose() * e2;
+			JtJ += weight * J.transpose() * J;
+			Jte += weight * J.transpose() * e2;
 
-			error_accum += e2.norm();
+			error_accum += e2.norm();// objectiveValue;// e2.norm();
 		}
 
 		// Levenberg-Marquardt update
@@ -460,7 +608,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		}
 
 		// Compute the update
-		update = JtJ.inverse() * /*-1 **/ Jte; // is there a negative here?
+		update = JtJ.inverse() * -1 * Jte; // is there a negative here?
 		Matrix3f updateToH;
 		updateToH << update(0), update(1), update(2),
 			         update(3), update(4), update(5),
@@ -482,18 +630,19 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 			H += updateToH;
 			H /= H(2, 2);
-			cout << H << endl;
+			//cout << H << endl;
 		}
 		else
 		{
 			lambda *= 10;
 			//break;
 		}
+		
 		cout << "CurrError: " << currError << " error_accum:  " << error_accum << " and lambda is " << lambda << endl;
 		//prevError = currError;
 		//cout << update << endl;
 		
-	}
+	}*/
 }
 
 /*

@@ -7,6 +7,7 @@
 #include "Features.h"
 #include "Estimation.h"
 #include "Compositor.h"
+#include <time.h>
 
 using namespace cv;
 using namespace std;
@@ -101,7 +102,88 @@ int main(int argc, char** argv)
 	  Try to get a better initial homography. So try noramlisation
 	- normalisation works, bundle adjsutment is still bad
 	- Try a robust cost function like Huber or Tukey. Ethan Eade is a good source here
+	- unit tests for LM
+	- LM works. Now add robust cost function into the mix. 
+	- These seem to work fine too. So why does RANSAC produce a good homography, and
+	  LM optimise well, but they can't function sequentially?
+	  Plan: only RANSAC on matches that are good. Goodness of a match is rated by the distance between
+	  the descriptors
+	  That didn't work. How about bundle adjusting only the inliers?
 	*/
+
+	// Unit tests for optimisation
+	std::vector<std::pair<Feature, Feature> > points;
+	Matrix3f homography;
+	/*
+	This homography is for data with a zero mean and std dev of 1
+	          1 5.16191e-08 2.06477e-07
+1.29048e-08           1           0
+1.54857e-07 2.58096e-08           1
+	*/
+
+	// Get 8 data points, perfectly done
+	float num = 720;
+	for (int i = 0; i < int(num); ++i)
+	{
+		Feature a;
+		a.p = Point2f(cos(((float)i/num)*2.f*PI), sin(((float)i / num)*2.f*PI));
+		Feature b;
+		b.p = Point2f(cos(((float)i / num)*2.f*PI), sin(((float)i / num)*2.f*PI));
+		//if (i % 2 == 0)
+		//{
+			float r = float(rand()) / (float(RAND_MAX) + 1.0);
+			b.p.x += r * 0.01 - 0.005;
+		//}
+
+		// Some really harsh outliers
+		if (i % 5 == 0)
+		{
+			float r = float(rand()) / (float(RAND_MAX) + 1.0);
+			b.p.x += r * 0.4 - 0.2;
+		}
+		points.push_back(make_pair(a,b));
+	}
+	
+	// Generate the homography between these pairs
+	/*if (!FindHomography(homography, points))
+	{
+		cout << "Failed to find sufficiently accurate homography for matches" << endl;
+		return 0;
+	}*/
+	cout << "Error: " << ErrorInHomography(points, homography) << endl;
+
+	// Ok, so these points are good. Now, perturb each part of the homography by some small delta
+	Matrix3f hPerturbation;
+	hPerturbation << 0.1,  -0.11, 0.1,
+		             -0.1, 0.5, -0.12,
+		             0.11,   -0.2, 0.3;
+	homography += hPerturbation;
+	homography /= homography(2,2);
+
+	cout << "Error after perturbation: " << ErrorInHomography(points, homography) << endl;
+
+	//BundleAdjustment(points, homography);
+
+	cout << "Error after BA: " << ErrorInHomography(points, homography) << endl;
+
+	// Now try data with some stronger outliers?
+	// some more points that are actually off?
+
+	// Generate some perfect points
+	// Assume the same 
+	
+	// perturb them by some small delta
+	// perturb H, assuming the points correspond perfectly
+
+	// refine them back to normal 
+
+	// Check
+
+	// Repeat, but create greater outliers
+	// Throw in some bogus data too (these are outliers)
+
+
+	//return 0;
 
 	// pull in both images. The first is the left and the second is the right
 	// In theory it doesn't actually matter though
@@ -222,6 +304,7 @@ int main(int argc, char** argv)
 #ifdef DEBUG
 	Mat matchImageFinal;
 	hconcat(leftImage, rightImage, matchImageFinal);
+	int offset = leftImage.cols;
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		Feature f1 = matches[i].first;
@@ -236,6 +319,7 @@ int main(int argc, char** argv)
 	waitKey(0);
 #endif
 
+	clock_t start = clock();
 	Matrix3f H;
 	if (!FindHomography(H, matches))
 	{
@@ -243,9 +327,11 @@ int main(int argc, char** argv)
 		return 0;
 	}
 	cout << "Homography: \n" << H << std::endl;
+	start = clock() - start;
+	cout << "RANSAC took " << ((float)(start)) / CLOCKS_PER_SEC << " seconds" << endl;
 
 	// Refine the homography with bundle adjustment
-	BundleAdjustment(matches, H);
+	//BundleAdjustment(matches, H);
 
 	cout << "New homography: \n" << H << std::endl;
 
