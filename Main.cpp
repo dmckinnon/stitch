@@ -109,6 +109,8 @@ int main(int argc, char** argv)
 	  Plan: only RANSAC on matches that are good. Goodness of a match is rated by the distance between
 	  the descriptors
 	  That didn't work. How about bundle adjusting only the inliers?
+	- Removed normalisation, BA only inliers
+	- Now onto alpha blending
 	*/
 
 	// Unit tests for optimisation
@@ -330,9 +332,6 @@ int main(int argc, char** argv)
 	start = clock() - start;
 	cout << "RANSAC took " << ((float)(start)) / CLOCKS_PER_SEC << " seconds" << endl;
 
-	// Refine the homography with bundle adjustment
-	//BundleAdjustment(matches, H);
-
 	cout << "New homography: \n" << H << std::endl;
 
 	// Stitch the images together
@@ -340,13 +339,12 @@ int main(int argc, char** argv)
 	Mat composite(size.second, size.first, CV_8U, Scalar(0));
 	Stitch(leftImage, rightImage, H, composite);
 
-//#ifdef DEBUG
+#ifdef DEBUG
 	imshow(debugWindowName, composite);
 	waitKey(0);
-//#endif
+#endif
 	// Alpha blending. Poisson blending looks good here
-	H;
-	// TODO: multiple images
+
 	return 0;
 }
 

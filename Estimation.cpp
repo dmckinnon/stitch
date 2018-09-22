@@ -106,7 +106,7 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 	srand(time(NULL));
 
 	// Get normalisation matrices, and normalise all points in the matches
-	auto normalisationMatrixPair = ConvertPoints(matches);
+	/*auto normalisationMatrixPair = ConvertPoints(matches);
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
 		auto p1 = matches[i].first.p;
@@ -120,7 +120,7 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 		auto v2Prime = normalisationMatrixPair.second * v2;
 		matches[i].second.p.x = v2Prime(0);
 		matches[i].second.p.y = v2Prime(1);
-	}
+	}*/
 
 	// RANSAC
 	int maxInliers = 0;
@@ -170,11 +170,11 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 		// Now bundle adjust on just the inlier set
 		cout << "Bundle adjustment" << endl;
 		BundleAdjustment(inlierSet, bestH);
-		cout << "Refined homography: " << bestH << endl;
+		cout << "Refined homography: " << endl << bestH << endl;
 
 		
 		// convert H back to regular coords from normalised coords
-		homography = normalisationMatrixPair.first.inverse() * bestH * normalisationMatrixPair.second;
+		homography = /*normalisationMatrixPair.first.inverse() */ bestH /* normalisationMatrixPair.second*/;
 		cout << "unnormalised homography: " << endl << homography << endl;
 		// renormalise
 		homography /= homography(2, 2);
@@ -368,7 +368,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 
 		// Get error vector, std dev vector, and Hx vector
-		/*vector<Vector2f> errors;
+		vector<Vector2f> errors;
 		float avg = 0;
 		float stddev = 0;
 		vector<Vector3f> hxVals;
@@ -398,7 +398,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		{
 			stddev += pow(errors[i].norm() - avg, 2);
 		}
-		stddev = sqrt(stddev);*/
+		stddev = sqrt(stddev);
 
 
 		VectorXf update(9);
@@ -425,8 +425,8 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			const Vector2f e2(e(0), e(1));
 
 			float costWeight = 1.f;
-			/*float objectiveValue = 0.f;
-			if (i > 5)
+			float objectiveValue = 0.f;
+			/*if (i > 5)
 				Huber(errors[i].norm(), stddev, objectiveValue, costWeight);
 			else
 				Tukey(errors[i].norm(), stddev, objectiveValue, costWeight);*/
@@ -454,7 +454,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 		}
 
 		// Compute the update
-		update = JtJ.inverse() /* -1*/ * Jte; // is there a negative here?
+		update = JtJ.inverse() * Jte; // is there a negative here?
 		Matrix3f updateToH;
 		updateToH << update(0), update(1), update(2),
 			update(3), update(4), update(5),
@@ -474,16 +474,18 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			lambda /= 10;
 			prevError = currError;
 
-			cout << "Update: " << endl << updateToH << endl;
-
-			H += updateToH;
-			H /= H(2, 2);
-			cout << "H: " << endl << H << endl;
+			
 		}
 		else
 		{
 			lambda *= 10;
 		}
+
+		cout << "Update: " << endl << updateToH << endl;
+
+		H += updateToH;
+		H /= H(2, 2);
+		cout << "H: " << endl << H << endl;
 
 		
 	}
