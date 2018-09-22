@@ -115,7 +115,8 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 		for (unsigned int x = 0; x < composite.cols; ++x)
 		{
 			Vector3f pixel(x-img1XOffset,y-img1YOffset,1);
-			auto transformedPixel = H.inverse() * pixel;
+			Vector3f transformedPixel = H.inverse() * pixel;
+			transformedPixel /= transformedPixel(2);
 
 			uchar pixelVal = 0;
 			if (0 < transformedPixel(0) && transformedPixel(0) < img2.cols-1)
@@ -131,5 +132,6 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 			}
 		}
 	}
-
 }
+
+// http://eric-yuan.me/poisson-blending/

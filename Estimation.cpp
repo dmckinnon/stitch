@@ -100,7 +100,7 @@ pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& ma
 	return make_pair(conversionForFirstPoints, conversionForSecondPoints);
 }
 // Actual function
-bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches)
+vector<pair<Feature, Feature> > FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches)
 {
 	// Initialise RNG
 	srand(time(NULL));
@@ -179,11 +179,12 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 		// renormalise
 		homography /= homography(2, 2);
 			
-		return true;
+		return inlierSet;
 	}
 
 	// We failed to find anything good
-	return false;
+	vector<pair<Feature, Feature> > empty;
+	return empty;
 }
 
 /*

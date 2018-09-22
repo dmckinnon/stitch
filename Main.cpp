@@ -53,11 +53,9 @@ int main(int argc, char** argv)
 	- Tweak RANSAC threshold
 	- error handling? Eh
 	- Cleaning and commentary
-	- Update levenberg marquardt parameter
 
 
 	Issues:
-	- Levenberg marquardt gets stuck?
 
 
 	Log:
@@ -323,7 +321,8 @@ int main(int argc, char** argv)
 
 	clock_t start = clock();
 	Matrix3f H;
-	if (!FindHomography(H, matches))
+	auto inlierSet = FindHomography(H, matches);
+	if (inlierSet.empty())
 	{
 		cout << "Failed to find sufficiently accurate homography for matches" << endl;
 		return 0;
@@ -339,10 +338,41 @@ int main(int argc, char** argv)
 	Mat composite(size.second, size.first, CV_8U, Scalar(0));
 	Stitch(leftImage, rightImage, H, composite);
 
-#ifdef DEBUG
+	// Draw, on the composite image
+	Vector3f topRight(rightImage.cols, 0, 1);
+	Vector3f bottomRight(rightImage.cols, rightImage.rows, 1);
+	Vector3f bottomLeft(0, rightImage.rows, 1);
+	Vector3f topLeft(0, 0, 1);
+
+	auto tr = H * topRight;
+	auto br = H * bottomRight;
+	auto bl = H * bottomLeft;
+	auto tl = H * topLeft;
+
+	int img1YOffset = (int)abs(min(0.f, min(tr(1), tl(1))));
+	int img1XOffset = (int)abs(min(0.f, min(tl(0), bl(0))));
+
+	// draw x and Hx for each set in the matches
+	for (unsigned int i = 0; i < inlierSet.size(); ++i)
+	{
+		auto xprime = inlierSet[i].first.p;
+		auto x = inlierSet[i].second.p;
+		Vector3f xvec(x.x, x.y, 1);
+
+		Vector3f Hx = H * xvec;
+		Hx /= Hx(2);
+
+		Point p(xprime.x + img1XOffset, xprime.y + img1YOffset);
+		circle(composite, p, 2, (0, 255, 0), -1);
+		
+		Point q(Hx(0) + img1XOffset, Hx(1) + img1YOffset);
+		circle(composite, q, 2, (255, 0, 255), -1);
+	}
+
+//#ifdef DEBUG
 	imshow(debugWindowName, composite);
 	waitKey(0);
-#endif
+//#endif
 	// Alpha blending. Poisson blending looks good here
 
 	return 0;
