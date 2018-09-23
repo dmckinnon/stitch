@@ -30,10 +30,21 @@ There are plenty more. Some are simple, some are ... rather complex (read the wi
 Here, I'm using FAST features, also called FAST corners because they are specifically designed to find corners. 
 
 OpenCV's Explanation of FAST: https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_fast/py_fast.html 
+
 Here is a better reference implementation of FAST, that is trained by a learner: https://github.com/edrosten/fast-C-src
+
 Here is the original paper: https://www.edwardrosten.com/work/rosten_2006_machine.pdf
 
-OpenCV's explanation is pretty good, so I'll be brief with my own here, since it's ... heavily influenced and copied from that
+OpenCV's explanation is pretty good, so I'll be brief with my own here, since it's ... heavily influenced and copied from that.
+
+The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 picels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals) 
+
+
+
+#### Other additions:
+- This could easily be parallelised. Try to figure out how, as an exercise. 
+
+- You could calculate these features at multiple scales. This would register bigger objects in the image as features, which might help if you had large featureless areas with thick borders (a wall of a house, perhaps)
 
 
 ### Feature Description
