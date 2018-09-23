@@ -48,8 +48,8 @@ bool FindFASTFeatures(Mat img, vector<Feature>& features)
 			// TODO: Adapt a brightness threshold?
 
 			int p = img.at<uchar>(h, w);
-			int pb = p + THRESH;
-			int p_b = p - THRESH;
+			int pb = p + FAST_THRESHOLD;
+			int p_b = p - FAST_THRESHOLD;
 
 			// Just make some threshold and figure out an adaptive threshold?
 

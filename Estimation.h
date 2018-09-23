@@ -9,7 +9,7 @@
 
 #define MAX_RANSAC_ITERATIONS 5000
 #define RANSAC_INLIER_MULTIPLER 2.447f
-#define POSITIONAL_UNCERTAINTY 0.06f
+#define POSITIONAL_UNCERTAINTY 0.1f
 #define MAX_BA_ITERATIONS 20
 #define BA_THRESHOLD (1e-03)
 
@@ -17,7 +17,7 @@
 #define TUKEY_K 4.685
 
 /* Estimation Functions */
-std::vector<std::pair<Feature, Feature> > FindHomography(Eigen::Matrix3f& homography, std::vector<std::pair<Feature, Feature> > matches);
+bool FindHomography(Eigen::Matrix3f& homography, std::vector<std::pair<Feature, Feature> > matches);
 
 // Normalise points
 std::pair<Eigen::Matrix3f, Eigen::Matrix3f> ConvertPoints(const std::vector<std::pair<Feature, Feature> >& matches);

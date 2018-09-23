@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -9,6 +10,8 @@
 #include "Compositor.h"
 #include <time.h>
 
+//#define DEBUG
+
 using namespace cv;
 using namespace std;
 using namespace Eigen;
@@ -16,175 +19,6 @@ using namespace Eigen;
 /* Function Implementations */
 int main(int argc, char** argv)
 {
-	/* Panorama stitching
-	
-	The aim of this exercise is to learn all the different parts to image stitching. 
-	These are:
-	- feature detection
-	- feature description
-	- feature matching with NN
-	- optimisation via direct linear transform
-		- This may require Levenberg-Marquardt to tighten things up
-	- applying transformations to images  - actual stitching
-
-	Also:
-	- bundle adjustment - yesss
-	- alpha blending - poisson blending
-	- using more than two views - yesss
-	- parallelise it!
-
-	The overarching aim is to learn first hand more computer vision techniques. This gives
-	me a broad knowledge of a lot of skills, whilst also implementing a fun project. 
-	An advantage is that we don't need camera calibration here. 
-
-	Best if we pick two images with a relatively small baseline compared to the distance
-	from the main object. 
-
-	At the end I should comment the crap out of this for anyone reading in future
-
-	For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
-	Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
-	Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
-    http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
-
-	TODO:
-	- Adaptive threshold for FAST features?
-	- Need to tweak threshold for Shi Tomasi
-	- Tweak RANSAC threshold
-	- error handling? Eh
-	- Cleaning and commentary
-
-
-	Issues:
-
-
-	Log:
-	- Starting with the theory of FAST features
-	- implementing fast features soon i hope, iteration 1
-	- FAST features basic version implemented with a threshold of 10. Do we use a dynamic
-	  threshold? I'll experiment with different numbers. 15 is working for now.
-	- Now score each feature with Shi-Tomasi score (then make descriptors)
-	- Iteration one of scoring done, testing now. Need more tweaking
-	- Got it at least working. Need a better threshold?
-	- Now for feature description. HOG won't work - not orientationally invariant. SURF or SIFT ... 
-	  Won't use ORB, want the more difficult route. 
-	  Gonna use SIFT - http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
-	- Non-maximal suppression on features added.
-	- Feature orientation added
-	- SIFT descriptors added. 
-	- SIFT descriptors possibly working?
-	- Feature matching working? We get some matches at least
-	- Going to test on other images
-	- So, given that these images are probably poor for FAST corners, I'm going to
-	  implement multi-scale feature detection, to see if that improves anything
-	- Don't do multi-scale yet, just debug FAST features
-	- Write some tests for FAST features, like check for sequential12
-	- Made images grayscale, and that bloody fixed it. UGH. Was using different colour channels
-	- THINGS WORK SO FAR UP TO MATCHING
-	- Need to tweak Shi Tomasi threshold
-	- Now to compute a Direct Linear Transform between the two images. I think
-	  I can do the Szeliski algorithm, or RANSAC, or a combination? Then bundle adjust it all
-	  Read Szeliski, figure out the transform
-	- Homography estimation and RANSAC
-	- Trying to get SVD for the homography estimation
-	- Imported eigen
-	- Implemented RANSAC to get best homography. Untested
-	- Homography returns something, at least. RANSAC epsilon might need tuning
-	- Starting compositing
-	- Without scaling of homography coordinates, it all actually works!!
-	- changed RANSAC criterion
-	- Next on the list is Levenberg-Marquardt, and then blending,
-	  although I should get normalisation working first
-    - Bundle adjustment isn't working, though I think I have the wrong Jacobian ... ?
-	- LM is minimising something, but I think the initial error is so wrong that we are stuck elsewhere
-	  Try to get a better initial homography. So try noramlisation
-	- normalisation works, bundle adjsutment is still bad
-	- Try a robust cost function like Huber or Tukey. Ethan Eade is a good source here
-	- unit tests for LM
-	- LM works. Now add robust cost function into the mix. 
-	- These seem to work fine too. So why does RANSAC produce a good homography, and
-	  LM optimise well, but they can't function sequentially?
-	  Plan: only RANSAC on matches that are good. Goodness of a match is rated by the distance between
-	  the descriptors
-	  That didn't work. How about bundle adjusting only the inliers?
-	- Removed normalisation, BA only inliers
-	- Now onto alpha blending
-	*/
-
-	// Unit tests for optimisation
-	std::vector<std::pair<Feature, Feature> > points;
-	Matrix3f homography;
-	/*
-	This homography is for data with a zero mean and std dev of 1
-	          1 5.16191e-08 2.06477e-07
-1.29048e-08           1           0
-1.54857e-07 2.58096e-08           1
-	*/
-
-	// Get 8 data points, perfectly done
-	float num = 720;
-	for (int i = 0; i < int(num); ++i)
-	{
-		Feature a;
-		a.p = Point2f(cos(((float)i/num)*2.f*PI), sin(((float)i / num)*2.f*PI));
-		Feature b;
-		b.p = Point2f(cos(((float)i / num)*2.f*PI), sin(((float)i / num)*2.f*PI));
-		//if (i % 2 == 0)
-		//{
-			float r = float(rand()) / (float(RAND_MAX) + 1.0);
-			b.p.x += r * 0.01 - 0.005;
-		//}
-
-		// Some really harsh outliers
-		if (i % 5 == 0)
-		{
-			float r = float(rand()) / (float(RAND_MAX) + 1.0);
-			b.p.x += r * 0.4 - 0.2;
-		}
-		points.push_back(make_pair(a,b));
-	}
-	
-	// Generate the homography between these pairs
-	/*if (!FindHomography(homography, points))
-	{
-		cout << "Failed to find sufficiently accurate homography for matches" << endl;
-		return 0;
-	}*/
-	cout << "Error: " << ErrorInHomography(points, homography) << endl;
-
-	// Ok, so these points are good. Now, perturb each part of the homography by some small delta
-	Matrix3f hPerturbation;
-	hPerturbation << 0.1,  -0.11, 0.1,
-		             -0.1, 0.5, -0.12,
-		             0.11,   -0.2, 0.3;
-	homography += hPerturbation;
-	homography /= homography(2,2);
-
-	cout << "Error after perturbation: " << ErrorInHomography(points, homography) << endl;
-
-	//BundleAdjustment(points, homography);
-
-	cout << "Error after BA: " << ErrorInHomography(points, homography) << endl;
-
-	// Now try data with some stronger outliers?
-	// some more points that are actually off?
-
-	// Generate some perfect points
-	// Assume the same 
-	
-	// perturb them by some small delta
-	// perturb H, assuming the points correspond perfectly
-
-	// refine them back to normal 
-
-	// Check
-
-	// Repeat, but create greater outliers
-	// Throw in some bogus data too (these are outliers)
-
-
-	//return 0;
-
 	// pull in both images. The first is the left and the second is the right
 	// In theory it doesn't actually matter though
 	if (argc < 3)
@@ -197,8 +31,10 @@ int main(int argc, char** argv)
 	Mat rightImage = imread(argv[2], IMREAD_GRAYSCALE);
 	
 	// For debuggging
+#ifdef DEBUG
 	std::string debugWindowName = "debug image";
 	namedWindow(debugWindowName);
+#endif
 
 	// Find features in each image
 	vector<Feature> leftFeatures;
@@ -217,8 +53,6 @@ int main(int argc, char** argv)
 #ifdef DEBUG
 	// Draw the features on the image
 	Mat temp = leftImage.clone();
-	// Debug display
-	
 	Mat matchImage;
 	hconcat(leftImage, rightImage, matchImage);
 	int offset = leftImage.cols;
@@ -251,7 +85,7 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	// Sort features and cull each list to top MAC_NUM_FEATURES features
+	// Sort features and cull each list to top MAX_NUM_FEATURES features
 	if (goodLeftFeatures.size() > MAX_NUM_FEATURES)
 	{
 		sort(goodLeftFeatures.begin(), goodLeftFeatures.end(), FeatureCompare);
@@ -319,62 +153,127 @@ int main(int argc, char** argv)
 	waitKey(0);
 #endif
 
-	clock_t start = clock();
+	// Use RANSAC to find a homography transform between the two images
 	Matrix3f H;
-	auto inlierSet = FindHomography(H, matches);
-	if (inlierSet.empty())
+	if (FindHomography(H, matches))
 	{
 		cout << "Failed to find sufficiently accurate homography for matches" << endl;
 		return 0;
 	}
-	cout << "Homography: \n" << H << std::endl;
-	start = clock() - start;
-	cout << "RANSAC took " << ((float)(start)) / CLOCKS_PER_SEC << " seconds" << endl;
-
-	cout << "New homography: \n" << H << std::endl;
 
 	// Stitch the images together
 	pair<int, int> size = GetFinalImageSize(leftImage, rightImage, H);
 	Mat composite(size.second, size.first, CV_8U, Scalar(0));
 	Stitch(leftImage, rightImage, H, composite);
 
-	// Draw, on the composite image
-	Vector3f topRight(rightImage.cols, 0, 1);
-	Vector3f bottomRight(rightImage.cols, rightImage.rows, 1);
-	Vector3f bottomLeft(0, rightImage.rows, 1);
-	Vector3f topLeft(0, 0, 1);
-
-	auto tr = H * topRight;
-	auto br = H * bottomRight;
-	auto bl = H * bottomLeft;
-	auto tl = H * topLeft;
-
-	int img1YOffset = (int)abs(min(0.f, min(tr(1), tl(1))));
-	int img1XOffset = (int)abs(min(0.f, min(tl(0), bl(0))));
-
-	// draw x and Hx for each set in the matches
-	for (unsigned int i = 0; i < inlierSet.size(); ++i)
-	{
-		auto xprime = inlierSet[i].first.p;
-		auto x = inlierSet[i].second.p;
-		Vector3f xvec(x.x, x.y, 1);
-
-		Vector3f Hx = H * xvec;
-		Hx /= Hx(2);
-
-		Point p(xprime.x + img1XOffset, xprime.y + img1YOffset);
-		circle(composite, p, 2, (0, 255, 0), -1);
-		
-		Point q(Hx(0) + img1XOffset, Hx(1) + img1YOffset);
-		circle(composite, q, 2, (255, 0, 255), -1);
-	}
-
-//#ifdef DEBUG
+#ifdef DEBUG
 	imshow(debugWindowName, composite);
 	waitKey(0);
-//#endif
-	// Alpha blending. Poisson blending looks good here
+#endif
+
+	imwrite("panorama.jpg", composite);
 
 	return 0;
 }
 
+/* Panorama stitching
+
+The aim of this exercise is to learn all the different parts to image stitching.
+These are:
+- feature detection
+- feature description
+- feature matching with NN
+- optimisation via direct linear transform
+- This may require Levenberg-Marquardt to tighten things up
+- applying transformations to images  - actual stitching
+
+Also:
+- bundle adjustment - yesss
+- alpha blending - poisson blending
+- using more than two views - yesss
+- parallelise it!
+
+The overarching aim is to learn first hand more computer vision techniques. This gives
+me a broad knowledge of a lot of skills, whilst also implementing a fun project.
+An advantage is that we don't need camera calibration here.
+
+Best if we pick two images with a relatively small baseline compared to the distance
+from the main object.
+
+At the end I should comment the crap out of this for anyone reading in future
+
+For testing I'm using Adobe's dataset: https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download
+Reference Implementation of FAST: https://github.com/edrosten/fast-C-src
+Panorama stitching: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
+http://ppwwyyxx.com/2016/How-to-Write-a-Panorama-Stitcher/#Blending
+
+TODO:
+- Adaptive threshold for FAST features?
+- Need to tweak threshold for Shi Tomasi
+- Tweak RANSAC threshold
+- error handling? Eh
+- Cleaning and commentary
+
+
+Issues:
+
+
+Log:
+- Starting with the theory of FAST features
+- implementing fast features soon i hope, iteration 1
+- FAST features basic version implemented with a threshold of 10. Do we use a dynamic
+threshold? I'll experiment with different numbers. 15 is working for now.
+- Now score each feature with Shi-Tomasi score (then make descriptors)
+- Iteration one of scoring done, testing now. Need more tweaking
+- Got it at least working. Need a better threshold?
+- Now for feature description. HOG won't work - not orientationally invariant. SURF or SIFT ...
+Won't use ORB, want the more difficult route.
+Gonna use SIFT - http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
+- Non-maximal suppression on features added.
+- Feature orientation added
+- SIFT descriptors added.
+- SIFT descriptors possibly working?
+- Feature matching working? We get some matches at least
+- Going to test on other images
+- So, given that these images are probably poor for FAST corners, I'm going to
+implement multi-scale feature detection, to see if that improves anything
+- Don't do multi-scale yet, just debug FAST features
+- Write some tests for FAST features, like check for sequential12
+- Made images grayscale, and that bloody fixed it. UGH. Was using different colour channels
+- THINGS WORK SO FAR UP TO MATCHING
+- Need to tweak Shi Tomasi threshold
+- Now to compute a Direct Linear Transform between the two images. I think
+I can do the Szeliski algorithm, or RANSAC, or a combination? Then bundle adjust it all
+Read Szeliski, figure out the transform
+- Homography estimation and RANSAC
+- Trying to get SVD for the homography estimation
+- Imported eigen
+- Implemented RANSAC to get best homography. Untested
+- Homography returns something, at least. RANSAC epsilon might need tuning
+- Starting compositing
+- Without scaling of homography coordinates, it all actually works!!
+- changed RANSAC criterion
+- Next on the list is Levenberg-Marquardt, and then blending,
+although I should get normalisation working first
+- Bundle adjustment isn't working, though I think I have the wrong Jacobian ... ?
+- LM is minimising something, but I think the initial error is so wrong that we are stuck elsewhere
+Try to get a better initial homography. So try noramlisation
+- normalisation works, bundle adjsutment is still bad
+- Try a robust cost function like Huber or Tukey. Ethan Eade is a good source here
+- unit tests for LM
+- LM works. Now add robust cost function into the mix.
+- These seem to work fine too. So why does RANSAC produce a good homography, and
+LM optimise well, but they can't function sequentially?
+Plan: only RANSAC on matches that are good. Goodness of a match is rated by the distance between
+the descriptors
+That didn't work. How about bundle adjusting only the inliers?
+- Removed normalisation, BA only inliers
+- Now onto alpha blending
+- before that, new RANSAC what Jaime suggested + try different images. These images are prolly actually borked
+- Tried some new images it's bloody amazing
+
+TODO:
+- So really this is fine but you should try the new ransac anyway
+- try parallelism of composition?
+- put in debug flags, allow for parameters to easily be tweaked
+*/
