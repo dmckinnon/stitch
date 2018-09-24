@@ -78,9 +78,20 @@ NMS_WINDOW, found in Features.h. Changing this determines how many features are 
 
 
 ## Feature Description
+I'm now going to start referring to these feature points we've been talking about as 'keypoints'. Because they are points that are key to matching the two images ... anyway. We now want to create keypoint descriptors, which are unique numbers for each keypoint/feature so that if we ever saw this again, we could easily identify it, or at least say "look, this one is very similar to that one, as their identifying numbers are close". 
+
+So, for now, how do we make these 'keypoint IDs'? What identifies a keypoint uniquely? Instead of saying ID, I'm going to use the word 'descriptor', because all the literature does that, but all that means is 'something that describes', and you can replace it with ID and you lose little. 
+As always, there are many ways of making descriptors for keypoints. BRIEF descriptors, SURF descriptors ... different descriptors have different strengths and weaknesses, like robustness to various conditions, or small size but similar identifying power ... but here, because I wanted to learn them, I chose SIFT descriptors. 
+
+Once again, AI Shack has [quite a good description of SIFT descriptors](http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/) - in fact, a good description of the entire [SIFT feature detector](http://www.aishack.in/tutorials/sift-scale-invariant-feature-transform-introduction/) too. I encourage reading both (the second is the whole series, the first link is just the last page in the series. It's not a long series).
+
+
 
 
 ### Tunable parameters
+technically, #define ILLUMINANCE_BOUND 0.2f
+#define NN_RATIO 0.8, 
+but Lowe kind of already tuned them
 
 ### Other notes
 
