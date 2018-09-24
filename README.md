@@ -9,7 +9,7 @@ I started this project at suggestion from a colleague to learn in-depth, from sc
 
 As you read through the code, it's good to use this as a reference g
 
-## Components
+# Components
 So to get a panorama, you take a photo of something, say a mountain, and then you turn a bit and take another photo, maybe of the side of the mountain and the sunset next to it. And then some magical stuff happens and la-di-da, out pops the two images made nicely into one, such that you can't even see the join (hopefully). So what happens under the hood?
 I'll talk specifically about the case for two pictures, but it easily generalises - or iterates. Get the panorama from the two images, stitch in a third, and repeat.
 
@@ -17,7 +17,7 @@ In broad terms, we need to find what the images have in common, find a way to ma
 
 Here is how I have broken down my code into components, based on the above:
 
-### Feature Detection
+## Feature Detection
 "Features" can be a bit of a vague concept in computer vision, and it certainly was for me at the start. Just call some OpenCV function and magical dots appear on your image! But what are they? How do you get them?
 
 There are a lot of different types of features, based on how you look for them. Here's a list of some:
@@ -25,6 +25,7 @@ There are a lot of different types of features, based on how you look for them. 
 - SIFT features
 - SURF features
 - ORB features
+
 
 There are plenty more. Some are simple, some are ... rather complex (read the wikipedia page for SIFT features, and enjoy). They each might find slightly different things, but in general, what 'feature detectors' aim to do is find points in an image that are sufficiently distinct that you can easily find that same feature again in another image - a future one, or the other of a stereo pair, for example. Features are distinct things like corners (of a table, of an eye, of a leaf, whatever), or edges, or points in the image where there is a lot of change in more than just one direction. To give an example of what is not an image, think of a blank wall. Take a small part of it. Could you find that bit again on the wall? That exact bit? It's not very distinct, so you likely couldn't. Then take a picture of someone's face. If I gave you a small image snippet containing just a bit of the corner of an eye, you'd find where it fit very quickly. AIShack has a [rather good overview](http://aishack.in/tutorials/features/) of the general theory of features.
 
@@ -39,16 +40,16 @@ OpenCV's explanation is pretty good, so I'll be brief with my own here, since it
 The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 picels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals)
 
 
-#### Tunable parameters
+### Tunable parameters
 FAST_THRESHOLD, found in Features.h. Changing this will determine how much brighter or darker the ring of pixels around a certain point needs to be for it to be noted as a feature. Eg. a value of 1 means that too many points will be features - blank walls have a pixel-to-pixel variance that's likely bigger. A value of 100 means that you'll barely get any features at all, since you need a sequence of at least 12 pixels that are centre pixel intensity + 100, which ou tof 255 possible values is a large change. 
 
-#### Other notes:
+### Other notes:
 - This could easily be parallelised. Try to figure out how, as an exercise. 
 
 - You could calculate these features at multiple scales. This would register bigger objects in the image as features, which might help if you had large featureless areas with thick borders (a wall of a house, perhaps)
 
 
-### Feature Scoring
+## Feature Scoring
 
 Your average image might have over a thousand features - this is quite a lot to process later, as you'll see. I cut this list down by computing a score for each feature, and then having a cutoff point, where I keep no features with a score below a certain threshold. 
 Once again, there are many methods of scoring features, and one of the most famous is the Shi-Tomasi score, invented by Shi and Tomasi in 1994. Here is their [original paper](http://www.ai.mit.edu/courses/6.891/handouts/shi94good.pdf).
@@ -67,28 +68,28 @@ The final stage of the feature scoring is to perform Non-Maximal Suppresion (and
 So we do this over our feature set that we've already cut down. For every feature, if there are any features in a 5x5 patch around it that are weaker, we suppress these too, just to reduce the amount we have to process over.
 
 
-#### Tunable parameters
+### Tunable parameters
 ST_THRESH, found in Features.h. Changing this determines how many features we'll keep or throw away. Too high, and we keep very few features, since few have a super high score. Too low, and we keep too many and it just becomes noise and slows down processing unnecessarily. 
 
 NMS_WINDOW, found in Features.h. Changing this determines how many features are suppressed around particularly strong features. Too small, and there will just be a lot of features in clusters, which we don't really need and just adds time to processing. Too large, and you risk cutting out too many important features, and lose quality for the end result. 
 
-#### Other notes
+### Other notes
 - Once again, this can easily be parallelised, since every feature is independent. The only bit that can't be is the non-maximal suppression
 
 
-### Feature Description
+## Feature Description
 
 
-#### Tunable parameters
+### Tunable parameters
 
-#### Other notes
+### Other notes
 
 
-### Feature Matching
+## Feature Matching
 
-### Finding the best transform
+## Finding the best transform
 
-### Composition
+## Composition
 
 ### Other
 There could be more steps. I could do some alpha blending, to smooth the transition between images. If you want to add that, feel free. I didn't because ... well, all I was really doing was panography. Blending is nice, but ... eh. Don't need to. 
