@@ -103,6 +103,9 @@ technically, ILLUMINANCE_BOUND and NN_RATIO, each in Features.h, are tunable par
 - Strictly speaking, SIFT features are captured at multiple scales, and thus the descriptors are created at different scales too, but I was just simplifying things and got features at only one scale.
 
 ## Feature Matching
+So far we have found features, cut out the ones we don't want, and then made unique descriptors, or IDs, for the remainder. What's next? Matching them!
+
+Now we have to get the features from the left image and features from the right image and ask "which of these are the same thing?" and then pair them up. 
 
 ## Finding the best transform
 
