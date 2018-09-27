@@ -113,7 +113,24 @@ When we have found the closest and second closest right-image features for a par
 You can try to tune Lowe's ratio, which is NN_RATIO, defined in Features.h. Changing this determines how "strong matches" are made. 
 
 ## Finding the best transform
-Now that we know which left-image features correspond to which right-image features, we have to find a mathematical operation that accurately transforms each right point into the correct left-image point. The operation we want is a 3D transform called a [Homography](https://en.wikipedia.org/wiki/Homography_(computer_vision)). 
+Now that we know which left-image features correspond to which right-image features, we have to find a mathematical operation that accurately transforms each right point into the correct left-image point. The operation we want is a 3D transform called a [Homography](https://en.wikipedia.org/wiki/Homography_(computer_vision)). Unfortunately, the wikipedia page for homographies is ... lacking ... although those more mathematically inclined can try the [mathematical definition](https://en.wikipedia.org/wiki/Homography). OpenCV [tries](https://docs.opencv.org/3.4.1/d9/dab/tutorial_homography.html) but in classic OpenCV style still manages to be rather vague and unclear unless you're already an expert. You can try [Youtube](https://www.youtube.com/watch?v=MlaIWymLCD8). Perhaps the best place is Multiple View Geometry In Computer Vision, by Hartley and Zisserman. A textbook, yes, but an excellent one. 
+
+Failing all that, I'm going to give a simple explanation here. I'm drawing from [this article](http://www.corrmap.com/features/homography_transformation.php), which is the simplest, best visualised, clearest explanation I've managed to find. Visualise your two images as two planes in space - think of the images sitting as giant rectangles overlaid in the air where you took the photos. A homography transforms points in planes to points in planes. Let's call these planes *P* and *P*'. We're going to normalise all our 3D points - that is, divide by the third coordinate to make it 1. This makes the mathematics simpler, and has some geometric connotations as well. So, for a homography H, and points **x**' in *P*' and **x** in *P*, 
+
+(*x*', *y*', 1) = H * (*x*, *y*, 1).
+
+
+
+So H is a 3x3 matrix. After we do this computation, we tend to normalise **x**' again, resulting in the fractional coordinates seen [here](http://www.corrmap.com/features/homography_transformation.php). Each of the parameters of H has a particular function:
+
+     ( scale the x coordinate      skew the x coordinate      translate x coordinate  )
+     
+H =  ( skew the y coordinate       scale the y coordinate     translate y coordinate  )
+     
+     ( x total scale               y total scale                        1             )
+     
+     
+
 
 how it works, different parameters
 
@@ -136,14 +153,16 @@ So we use H inverse = G to transform a _left-image_ pixel into _right image_ spa
 Now that we have the correct pixel values from each image in the same coordinate space, I simply average the corresponding ones together, and BAM, we're done!
 
 ### Tunable Parameters
-None, really. This is probably the simplest step
+None, really. This is probably the simplest step.
 
 ### Other notes
-You could do something other than averaging here when stitching the images. One thing to try is as the pixels get deeper into the right image and more to the edge of the left image, using a greater percentage of right pixels than 50%. 
+- You could do something other than averaging here when stitching the images. One thing to try is as the pixels get deeper into the right image and more to the edge of the left image, using a greater percentage of right pixels than 50%. 
 
-Another technique is that of **Alpha Blending**. This involves more complicated ways of merging the two, for example [Poisson Blending](http://eric-yuan.me/poisson-blending/). This gets more necessary/useful when your two images are under different lighting conditions; when they are very similar in terms of saturation, etc, then it may not have a huge effect.
+- Another technique is that of **Alpha Blending**. This involves more complicated ways of merging the two, for example [Poisson Blending](http://eric-yuan.me/poisson-blending/). This gets more necessary/useful when your two images are under different lighting conditions; when they are very similar in terms of saturation, etc, then it may not have a huge effect.
 
-Finally, this step can be parallelised, and may be the easiest spot to do so. Every pixel can be computed independently of every other. Try to figure out the optimal method of parallelising this! I've given one solution in the code comments already. 
+- Sometimes stretching is needed, when the scales of the images or objects don't quite match up and you have a close object that needs to be stretch across a long space to line up with several distant objects across the pictures. 
+
+- Finally, this step can be parallelised, and may be the easiest spot to do so. Every pixel can be computed independently of every other. Try to figure out the optimal method of parallelising this! I've given one solution in the code comments already. 
 
 ## How to read the code
 
