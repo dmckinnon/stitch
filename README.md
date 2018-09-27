@@ -149,4 +149,8 @@ Finally, this step can be parallelised, and may be the easiest spot to do so. Ev
 
 
 ## Building and running
+I've included in the repo the .exe and the necessary dlls to just run this straight out of the box. It takes in two command-line arguments - the absolute paths of the two images, ordered left (first arg) and right (second arg) (the order shouldn't actually matter), and spits out panorama.jpg, which is the stitched image. If something fails, it prints error messages. 
 
+I developed this in Visual Studio on Windows, but nothing is platform-dependent. The only dependencies it has are [Eigen](https://eigen.tuxfamily.org/dox/GettingStarted.html) and [OpenCV](https://opencv.org/), just for a few things like the Mat types, Gaussian blur, the Sobel operator, etc. If you don't want to do the whole download, build OpenCV yourself thing, just use the dlls and libs I supplied, and download the source code and be sure to link the headers the right way. Installing OpenCV was complicated enough for me that this is a topic for another day, and unfortunately I can't find the link yet that I used. If I find it, I'll add it. 
+
+Thanks for reading - enjoy!
