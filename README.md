@@ -97,7 +97,7 @@ There are a couple of things worth mentioning. The angle of each gradient is tak
 All of this is explained with nice diagrams in the AI Shack link above. 
 
 ### Tunable parameters
-technically, ILLUMINANCE_BOUND and NN_RATIO, each in Features.h, are tunable parameters, but Lowe (the inventor of SIFT) tuned these parameters already and found the values they have to be experimentally pretty good. Still, feel free to change them. 
+Technically, ILLUMINANCE_BOUND and NN_RATIO, both in Features.h, are tunable parameters, but Lowe (the inventor of SIFT) tuned these parameters already and found the values they have to be experimentally pretty good. Still, feel free to change them. 
 
 ### Other notes
 - Strictly speaking, SIFT features are captured at multiple scales, and thus the descriptors are created at different scales too, but I was just simplifying things and got features at only one scale.
@@ -105,18 +105,45 @@ technically, ILLUMINANCE_BOUND and NN_RATIO, each in Features.h, are tunable par
 ## Feature Matching
 So far we have found features, cut out the ones we don't want, and then made unique descriptors, or IDs, for the remainder. What's next? Matching them!
 
-Now we have to get the features from the left image and features from the right image and ask "which of these are the same thing?" and then pair them up. 
+Now we have to get the features from the left image and features from the right image and ask "which of these are the same thing?" and then pair them up. There are some complicated ways to do this, that work fast and optimise certain scenarios (look up k-d trees, for example) but what I have done here is, by and large, pretty simple. I have two lists of features. For each feature in one list (I use the list from the left image), search through all features in the second list, and find the closest and second closest. 'Closest' here is defined by the norm of the vector difference between the descriptors. 
+
+When we have found the closest and second closest right-image features for a particular left-image feature, we take the ratio of their distances to the left-image feature to compare them. If DistanceToClosestRightImageFeature / DistanceToSecondClosestRightImageFeature < 0.8, this is considered a strong enough match, and we store these matching left and right features together. What is this ratio test? This was developed by Lowe, who also invented SIFT. His reasoning was that for this match to be considered strong, the feature closest in the descriptor space must be the closest feature by a clear bound - that is, it stands out and is obviously the closest, and not like "oh, it's a tiny bit closer than this other one". Mathematically, the closest feature should be less than 80 percent of the next closest feature. 
+
+### Tunable Parameters
+You can try to tune Lowe's ratio, which is NN_RATIO, defined in Features.h. Changing this determines how "strong matches" are made. 
 
 ## Finding the best transform
+Now that we know which left-image features correspond to which right-image features, we have to find a mathematical operation that accurately transforms each right point into the correct left-image point. The operation we want is a 3D transform called a [Homography](https://en.wikipedia.org/wiki/Homography_(computer_vision)). 
+
+how it works, different parameters
+
+SVD
+RANSAC
+Levenberg-Marquardt
+
 
 ## Composition
+Last, but not least, we have to actually put the two images into the same frame. We have the original left image. We now have a way to transform pixels in the right image to the left image coordinate space. How do we do this?
 
-### Other
-There could be more steps. I could do some alpha blending, to smooth the transition between images. If you want to add that, feel free. I didn't because ... well, all I was really doing was panography. Blending is nice, but ... eh. Don't need to. 
+At first, this seems obvious: for each pixel in the right image, transform it by the homography H from the previous stage, and then, say, average the transformed right pixel, and the left pixel it overlaps with. Simple. 
 
-Other things could be if you have a lot of images, bundle adjustment across them all, rather than doing it pairwise. Large-scale bundle adjustment changes the task quite a bit and can be interesting to try.
+Except not quite. 
 
-You could also parallelise a lot of these - I've given it some thought, but haven't included much here. Give it a shot!
+When I have a vector **x** = (x,y,1) and transform it to **x**' = H**x** ... **x**' isn't going to have nice integer coordinates. they'll be ... 36.8 or whatever. Point is, they won't be nicely pixel-aligned. To solve this, we actually use the inverse of H, which I'm going to call G, since I don't know how to do superscripts in markdown. 
+
+So we use H inverse = G to transform a _left-image_ pixel into _right image_ space, by **y**' = G**y**, and it's going to not be pixel-aligned either. We then use [Bilinear Interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation) to figure out the correct sub-pixel value for this point, and then we take that value as the right image pixel value to stitch at **y** in the left image coordinate space. Interpolation is how we approximate a value between two known points, when we can't sample any finer than those points. For example, if you know that for some function f(x), f(0) = 0 and f(1) = 1, and you want to guess the value at x=0.8, then you can use [linear interpolation](https://en.wikipedia.org/wiki/Linear_interpolation), which says it's going to be 0.8 times the value at x = 1 averaged with 0.2 times the value at x = 0. Bilinear interpolation is simply the two dimensional version of this. 
+
+Now that we have the correct pixel values from each image in the same coordinate space, I simply average the corresponding ones together, and BAM, we're done!
+
+### Tunable Parameters
+None, really. This is probably the simplest step
+
+### Other notes
+You could do something other than averaging here when stitching the images. One thing to try is as the pixels get deeper into the right image and more to the edge of the left image, using a greater percentage of right pixels than 50%. 
+
+Another technique is that of **Alpha Blending**. This involves more complicated ways of merging the two, for example [Poisson Blending](http://eric-yuan.me/poisson-blending/). This gets more necessary/useful when your two images are under different lighting conditions; when they are very similar in terms of saturation, etc, then it may not have a huge effect.
+
+Finally, this step can be parallelised, and may be the easiest spot to do so. Every pixel can be computed independently of every other. Try to figure out the optimal method of parallelising this! I've given one solution in the code comments already. 
 
 ## How to read the code
 
