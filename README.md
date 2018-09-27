@@ -123,16 +123,29 @@ Failing all that, I'm going to give a simple explanation here. I'm drawing from 
 
 So H is a 3x3 matrix. After we do this computation, we tend to normalise **x**' again, resulting in the fractional coordinates seen [here](http://www.corrmap.com/features/homography_transformation.php). Each of the parameters of H has a particular function:
 
-     ( scale the x coordinate      skew the x coordinate      translate x coordinate  )
+     `( scale the x coordinate      skew the x coordinate      translate x coordinate  )`
      
-H =  ( skew the y coordinate       scale the y coordinate     translate y coordinate  )
+`H =  ( skew the y coordinate       scale the y coordinate     translate y coordinate  )`
      
-     ( x total scale               y total scale                        1             )
+     `( x total scale               y total scale                        1             )`
      
      
+I realise this is not a comprehensive overview of how homographies work, but alas, this is not that place. Just assume for now that they do work - if we tack a 1 on to the `(x,y)` coords from the images, there is a 3x3 matrix that will take you from one image to the other. 
 
+So how do we compute this matrix?
+I know I keep referring to it, but [this](http://www.corrmap.com/features/homography_transformation.php) sort-of explains it at the bottom. I also have a brief explanation above GetHomographyFromMatches in Estimation.cpp, so I won't parrot it here. Suffice to say that we assume that **x**' - H**x** = 0, for (at least) four pairs of matching points (**x**', **x**), form a 9-vector **h** from the elements of H and rework this equation to be A**h** = 0, for some matrix A (see Estimation.cpp). Then we use some estimation methods to solve this. The thing is ... there may be no **h** that precisely solves this equation, but there may be one that _approximately_ solves it. So we get the smallest possible solution that does so. But how are we getting these solutions **h** to A**h** = 0?
 
-how it works, different parameters
+[Singular Value Decomposition](https://en.wikipedia.org/wiki/Singular-value_decomposition). For more reference on this, I list a lot of links relating to the computation of this process, the theory behind it, the practical use, etc, above GetHomographyFromMatches in Estimation.cpp. This breaks A down into its 'singular values - these are the analogy of eigenvalues, but for non-square matrices. The matrix A is split into three matrices, U, D, and V transpose. D contains, listed from left to right descending along the diagonal, the singular values of A. The columns of V are the singular vectors of A. If we set **h** to be the vector corresponding to the smallest singular value of A, this gives us an approximate solution to A**h** = 0. 
+
+> If you don't understand this part - that's perfectly ok! I have a degree in mathematics and this took me a while and a lot of reading to figure things out, and even then I struggle with it. This is complicated stuff. If you want, you can just think "there's some magical method of getting this matrix H" and leave it at that. 
+
+So we now have a tool to estimate our homography H, using four pairs of matching points (**x**', **x**). Which four do we pick? How do we know if we picked the best? 
+
+The answer to this is we try a lot of combinations. Not all, cos that's stupidly many. Let's say we have 50 matches (a relatively low number). There are 50!/(50-4)! = 5527200 combinations. Have fun waiting for that to finish calculating, since we need to do SVD each time to get the homography, and then test the homography on each matching pair to evaluate it. Nope. 
+
+The advantage we have is that most fours we pick should be good - and so if we pick just a few, then we'll likely hit a decent solution, and from there we have some tricks to refine it further - but that's later. By 'a few' I mean a thousand or so, which when you think about it is less than a percent of the full number of possibilities. But we still hit the question "how do we choose which fours to pick?". RANSAC is the answer, and in my opinion, one of the loveliest algorithms. 
+
+RANSAC stands for [RANdom SAmple Consensus](https://en.wikipedia.org/wiki/Random_sample_consensus).  
 
 SVD
 RANSAC
