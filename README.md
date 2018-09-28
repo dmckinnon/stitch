@@ -141,15 +141,34 @@ I know I keep referring to it, but [this](http://www.corrmap.com/features/homogr
 
 So we now have a tool to estimate our homography H, using four pairs of matching points (**x**', **x**). Which four do we pick? How do we know if we picked the best? 
 
-The answer to this is we try a lot of combinations. Not all, cos that's stupidly many. Let's say we have 50 matches (a relatively low number). There are 50!/(50-4)! = 5527200 combinations. Have fun waiting for that to finish calculating, since we need to do SVD each time to get the homography, and then test the homography on each matching pair to evaluate it. Nope. 
+The answer to this is we try a lot of combinations. Not all, cos that's stupidly many. Let's say we have 50 matches (a relatively low number). There are 50!/(50-4)!4! = 230300 combinations. Have fun waiting for that to finish calculating, since we need to do SVD each time to get the homography, and then test the homography on each matching pair to evaluate it. Nope. 
 
-The advantage we have is that most fours we pick should be good - and so if we pick just a few, then we'll likely hit a decent solution, and from there we have some tricks to refine it further - but that's later. By 'a few' I mean a thousand or so, which when you think about it is less than a percent of the full number of possibilities. But we still hit the question "how do we choose which fours to pick?". RANSAC is the answer, and in my opinion, one of the loveliest algorithms. 
+The advantage we have is that most fours we pick should be good - and so if we pick just a few, then we'll likely hit a decent solution, and from there we have some tricks to refine it further - but that's later. By 'a few' I mean several hundred or so, which when you think about it is less than a percent of the full number of possibilities. But we still hit the question "how do we choose which fours to pick?". RANSAC is the answer, and in my opinion, one of the loveliest algorithms. 
 
-RANSAC stands for [RANdom SAmple Consensus](https://en.wikipedia.org/wiki/Random_sample_consensus).  
+RANSAC stands for [RANdom SAmple Consensus](https://en.wikipedia.org/wiki/Random_sample_consensus). I won't go into this algorithm too much here, but the basics of it are that we pick X number of points randomly from our pool, and then evaluate every other point according to some metric (here, how well the matches work under a homography constructed from these four points). We classify these into inliers and outliers according to some bound, and we keep the best set of points we get over a certain number of iterations. 
+
+The way I use it here is as follows: 
+1. Choose four matches at random from the pool of matched points (GetRandomFourIndices, Estimation.cpp). 
+
+2. Compute the homography for these points (GetHomographyFromMatches, Estiamtion.cpp). 
+
+3. Evaluate the homography and get the inlier set, to see how many inliers we get (EvaluateHomography, Estimation.cpp). 
+
+4. Refine this homography on just this inlier set (This is known as Bundle Adjustment or Optimisation, and is mentioned below).
+
+5. Repeat 3 and 4 until we get no new inliers
+
+6. Repeat 1-5 MAX_RANSAC_ITERATIONS number of times and choose the homography from the set that finishes with the most inliers
 
 SVD
 RANSAC
 Levenberg-Marquardt
+
+### Tunable parameters
+- MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
+
+### Other notes
+
 
 
 ## Composition
