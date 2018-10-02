@@ -128,11 +128,11 @@ Failing all that, I'm going to give a simple explanation here. I'm drawing from 
 
 So H is a 3x3 matrix. After we do this computation, we tend to normalise **x**' again, resulting in the fractional coordinates seen [here](http://www.corrmap.com/features/homography_transformation.php). Each of the parameters of H has a particular function:
 
-     `( scale the x coordinate      skew the x coordinate      translate x coordinate  )`
+     ( scale the x coordinate      skew the x coordinate      translate x coordinate  )
      
-`H =  ( skew the y coordinate       scale the y coordinate     translate y coordinate  )`
+`H =  ( skew the y coordinate          scale the y coordinate        translate y coordinate  )`
      
-     `( x total scale               y total scale                        1             )`
+     ( x total scale               y total scale                        1             )
      
      
 I realise this is not a comprehensive overview of how homographies work, but alas, this is not that place. Just assume for now that they do work - if we tack a 1 on to the `(x,y)` coords from the images, there is a 3x3 matrix that will take you from one image to the other. 
@@ -165,15 +165,26 @@ The way I use it here is as follows:
 
 6. Repeat 1-5 MAX_RANSAC_ITERATIONS number of times and choose the homography from the set that finishes with the most inliers
 
-SVD
-RANSAC
-Levenberg-Marquardt
+
+After all this ... The homography that remains after all this should be a really good one. By "really good homography", I mean that we have tested how well it fits the matches we have from before - this is how EvaluateHomography works - and it has a total error below some bound. We test the homography by looping over each matching pair of features, and using H to transform one feature point of the match into the coordinate space of the other feature point. We then take the euclidean distance between the transformed point and the other feature point. Adding this up over all feature matches, we get the total error for a given H. Each individual error should be less than a pixel off - far less, for a good H - so we can use this to asses what a reasonable H is, what a good H is, and what a terrible H is. 
+
+So now we have a homography. It's understandable that a lot of that theory went in one ear and out the other. Like I said, feel free to black box all this for now and just assume we found some magical way of turning the matched features into figuring out how to match every pixel in the overlap. 
+
+So this figured out how we turn and bend and align the second photo to fit on to the first, given a collection of matching points that we know we can line up. The final step now is to stick them together. 
+
+N.B. I mentioned Optimisation above, and if you want, you can black box this too and ignore it. If you are interested in the theory, read on:
+
+
+**Optimsation**
+I mentioned in step 
+
+
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
 
 ### Other notes
-
+- There are other ways to do optimisation, and this is by no means the best or worst or whatever. But that's getting a bit deep and too much for here. 
 
 
 ## Composition
