@@ -175,8 +175,13 @@ So this figured out how we turn and bend and align the second photo to fit on to
 N.B. I mentioned Optimisation above, and if you want, you can black box this too and ignore it. If you are interested in the theory, read on:
 
 
-**Optimsation**
-I mentioned in step 
+**Optimsation**:
+
+The idea behind optimisation is that we have some function, f(**x**), that we are comparing to some data, **y**, and it's off by some error **e** = |**y** - f(**x**)|. It'd be nice if we could make that error smaller by tweaking the function f. Well, we can. Remember that if you want to find the local minimum of a function, you find the derivative and set that to zero? And solve for the point, and that point is the minimal point of the function?
+
+Well, same theory applies here. I'm using a variant of [Gauss-Newton Optimisation]() called [Levenberg-Marquardt Optimisation](). These both do approximately the same thing. We want to fine-tune our estimate of H, right? Make it as good as possible. Since the homography computation can only get so good on four points, we use optimisation across all the points to tweak H, which in this section is represented by f, to reduce the error **e** = |**x**' - H**x**|.
+
+Unfortunately it's hard to write a lot of the math here so I'm going to try my best without equations. 
 
 
 
@@ -194,7 +199,7 @@ At first, this seems obvious: for each pixel in the right image, transform it by
 
 Except not quite. 
 
-When I have a vector **x** = (x,y,1) and transform it to **x**' = H**x** ... **x**' isn't going to have nice integer coordinates. they'll be ... 36.8 or whatever. Point is, they won't be nicely pixel-aligned. To solve this, we actually use the inverse of H, which I'm going to call G, since I don't know how to do superscripts in markdown. 
+When I have a vector **x** = (x,y,1) and transform it to **x**' = H**x** ... well, **x**' isn't going to have nice integer coordinates. they'll be ... 36.8 or whatever. Point is, they won't be nicely pixel-aligned. To solve this, we actually use the inverse of H, which I'm going to call G, since I don't know how to do superscripts in markdown. 
 
 So we use H inverse = G to transform a _left-image_ pixel into _right image_ space, by **y**' = G**y**, and it's going to not be pixel-aligned either. We then use [Bilinear Interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation) to figure out the correct sub-pixel value for this point, and then we take that value as the right image pixel value to stitch at **y** in the left image coordinate space. Interpolation is how we approximate a value between two known points, when we can't sample any finer than those points. For example, if you know that for some function f(x), f(0) = 0 and f(1) = 1, and you want to guess the value at x=0.8, then you can use [linear interpolation](https://en.wikipedia.org/wiki/Linear_interpolation), which says it's going to be 0.8 times the value at x = 1 averaged with 0.2 times the value at x = 0. Bilinear interpolation is simply the two dimensional version of this. 
 
