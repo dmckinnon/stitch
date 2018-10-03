@@ -34,17 +34,24 @@ bool FindFASTFeatures(Mat img, vector<Feature>& features)
 {
 	int width = img.cols;
 	int height = img.rows;
-	// For each pixel (three in from each side)
+	// Loop over each point in the image, except for a strip of width 3 around the edge. THis is so we
+	// avoid dealing with the cases where the pixels 3 away from the point of consideration don't exist.
+	// There are enough features in teh main body of the image that removing any in the 3 pixels of edge does nothing.
 	for (int h = FAST_SPACING; h < height - FAST_SPACING; ++h)
 	{
 		for (int w = FAST_SPACING; w < width - FAST_SPACING; ++w)
 		{
+			// Get the upper and lower thresholds we'll use.
+			// Everything in the sequence must be above pb - the pixel value plus the threshold,
+			// or below p_b - the pixel value minus the threshold
 			int p = img.at<uchar>(h, w);
 			int pb = p + FAST_THRESHOLD;
 			int p_b = p - FAST_THRESHOLD;
 
 			// For a speed-up, check 1, 9, then 5, 13
-			// Any three of 1,5,9,13 can be all brighter or darker. If not ... not a corner
+			// Any three of 1,5,9,13 can be all brighter or darker. If not,
+			// then this is not a corner. 
+			// This just quickly skips many points and is not strictly necessary
 			int i1 = img.at<uchar>(h - FAST_SPACING, w);
 			int i5 = img.at<uchar>(h, w + FAST_SPACING);
 			int i9 = img.at<uchar>(h + FAST_SPACING, w);
@@ -77,7 +84,7 @@ bool FindFASTFeatures(Mat img, vector<Feature>& features)
 					continue;
 				}
 
-				// We have a feature. Mark this spot
+				// It worked! We have a feature. Record this point in our vector
 				Feature feature;
 				feature.p.x = w;
 				feature.p.y = h;
@@ -260,27 +267,27 @@ void TestSequential12(void)
 }
 
 /*
-Score features with Shi-Tomasi score.
-Any features below the cut-off are removed.
-http://aishack.in/tutorials/harris-corner-detector/
+	Feature Scoring
+	
+	We loop over the list of features supplied and construct a value for each
+	based on the Shi-Tomasi score.
+	Any features below the cut-off are removed.
+	The Shi Tomasi score is explained here: http://aishack.in/tutorials/harris-corner-detector/
 
-Then we do a second pass, and if any features are sufficiently close,
-we cluster them to the one with the highest score, and boost its score.
+	Then we do a second pass, and if there are tight groups of features,
+	we cull everything but the one with the highest score in the group.
+	This is the Non-Maximal Suppression.
 
-Also should perform non-maximal suppression
+	The Shi-Tomasi score uses the minimum eigenvalue of the matrix
+	I_x^2     I_x I_y
+	I_x I_y     I_x ^2
+	where I_x is the derivative in X of the image i at x,y.
+	We compute the derivate from a window of size ST_WINDOW either side of the point,
+	and use a Gaussian kernel to weight all the values' contributions to the derivative. 
 
-The Shi-Tomasi score uses the minimum eigenvalue of the matrix
-I_x^2     I_x I_y
-I_x I_y     I_x ^2
-where I_x is the derivative in X of the image i at x,y.
-TODO: which derivative to use?
-Sobel operator, with a default value of 3
-4x4 window size? 5x5?
-
-Parameters:
-- There is a cutoff value for the Shi-Tomasi corner detector
-- Window size for deformation matrix
-
+	Parameters:
+	- There is a cutoff value for the Shi-Tomasi corner detector
+	- Window size for deformation matrix
 */
 // Support function
 bool FeatureCompare(Feature a, Feature b)
@@ -290,9 +297,11 @@ bool FeatureCompare(Feature a, Feature b)
 // Actual function
 std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 {
-	// let's cheat and use opencv to compute the sobel derivative, window size 3
+	// let's cheat and use opencv to compute the sobel derivative, window size 3,
 	// over the whole image
-	// lol this doesn't actually save us much time but whatevs
+	// lol this doesn't actually save us much time but whatevs, I know how to implement this. 
+	// here's an explanation if you don't know the theory - https://en.wikipedia.org/wiki/Sobel_operator
+	// Basically this gets the gradients at all points over the image, which we use for the derivative of the "image function"
 	Mat sobel;
 	GaussianBlur(img, sobel, Size(ST_WINDOW, ST_WINDOW), 1, 1, BORDER_DEFAULT);
 	Mat grad_x, grad_y;
@@ -307,7 +316,6 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	// Get gaussian kernel for weighting the gradients within the window
 	Mat gaussKernel = Mat(ST_WINDOW, ST_WINDOW, CV_32F, 1);
 	for (int i = 0; i < ST_WINDOW; ++i) for (int j = 0; j < ST_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
-	//Mat gaussKernel = getGaussianKernel(ST_WINDOW, 1, CV_32F);
 	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1, 1, BORDER_DEFAULT);
 
 	int width = img.cols;
@@ -315,6 +323,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	int numFeatures = features.size();
 	std::vector<Feature> goodFeatures;
 	float avgEigen = 0.f;
+	// Loop over all features in the given list to score them
 	for (int i = 0; i < numFeatures; ++i)
 	{
 		auto& f = features[i];
@@ -322,6 +331,9 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 		Mat M = Mat::zeros(2, 2, CV_32F);
 		// Go through the window around the feature
 		// Accumulate M weighted by the kernel
+		// This is the gradient at the feature point that we will use. 
+		// We use an accumulated gradient rather than a pointwise gradient since we are 
+		// approximating the gradient of a "smooth" function that we only know at certain points.
 		for (int n = -(ST_WINDOW / 2); n <= ST_WINDOW / 2; ++n)
 		{
 			for (int m = -(ST_WINDOW / 2); m <= (ST_WINDOW / 2); ++m)
@@ -338,7 +350,8 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 
 		// Compute the eigenvalues of M
 		// so the equation is
-		// (Ix2 - E)(Iy2 - E) - Ixy2, solve for two solutions of e
+		// (I_x squared - E)(I_y squared - E) - I_xy squared, solve for two solutions of e
+		// See the ai shack link above for the equation written nicely
 		float a = 1.f; // yeah, unnecessary, just for show
 		float b = -1 * (M.at<float>(0, 0) + M.at<float>(1, 1));
 		float c = M.at<float>(0, 0)*M.at<float>(1, 1) - M.at<float>(1, 0)*M.at<float>(0, 1);
@@ -348,6 +361,7 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 		float minEigenvalue = min(eigen1, eigen2);
 		f.score = minEigenvalue;
 		avgEigen += f.score;
+		// Only keep features that have a score above our threshold
 		if (f.score > ST_THRESH)
 		{
 			goodFeatures.push_back(f);
@@ -395,21 +409,21 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 }
 
 /*
-Create SIFT descriptors for each feature given.
-http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
+	Feature Description
+	Create SIFT descriptors for each feature given.
+	http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
 
-First, we use the SIFT method of computing the orientation of each pixel. 
-Every subsequent orientation, like the gradients below, is taken relative to this
-to ensure invariance to orientation.
+	First, we use the SIFT method of computing the orientation of each pixel. 
+	Every subsequent orientation, like the gradients below, is taken relative to this
+	to ensure invariance to orientation.
 
-In a 16x16 window around the feature, we create 16 4x4 windows.
-In each window, we create an 8 bin histogram for gradient orientation, weighting
-each bin entry with the magnitude of the added vector. These entries are also weighted
-by a gaussian function based on distance from the centre. 
-Then these are all put into the one big 128-long vector.
-The vector is normalised, capped at 0.2 for illuminance checking, then normalised again
-(https://en.wikipedia.org/wiki/Scale-invariant_feature_transform#Keypoint_descriptor)
-
+	In a 16x16 window around the feature, we create 16 4x4 windows.
+	In each window, we create an 8 bin histogram for gradient orientation, weighting
+	each bin entry with the magnitude of the added vector. These entries are also weighted
+	by a gaussian function based on distance from the centre. 
+	Then these are all put into the one big 128-long vector.
+	The vector is normalised, capped at 0.2 for illuminance checking, then normalised again
+	(https://en.wikipedia.org/wiki/Scale-invariant_feature_transform#Keypoint_descriptor)
 */
 // Support functions
 template <typename T>
