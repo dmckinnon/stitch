@@ -133,5 +133,3 @@ void Stitch(const cv::Mat& img1, const cv::Mat& img2, const Eigen::Matrix3f& H, 
 		}
 	}
 }
-
-// http://eric-yuan.me/poisson-blending/

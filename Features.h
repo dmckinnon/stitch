@@ -8,14 +8,13 @@
 // Parameters to tune
 #define FAST_THRESHOLD 30
 #define ST_THRESH 30000.f
+#define NMS_WINDOW 2
 #define MAX_NUM_FEATURES 100
 #define MATCH_THRESHOLD 0.1f
 
 // Other parameters
-
-#define FAST_SPACING 3
 #define ST_WINDOW 3
-#define NMS_WINDOW 2
+#define FAST_SPACING 3
 #define ANGLE_WINDOW 9
 #define ORIENTATION_HIST_BINS 36
 #define DESC_BINS 8

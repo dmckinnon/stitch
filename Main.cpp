@@ -56,7 +56,6 @@ int main(int argc, char** argv)
 	Mat matchImage;
 	hconcat(leftImage, rightImage, matchImage);
 	int offset = leftImage.cols;
-	// Draw the features on the image
 	for (unsigned int i = 0; i < leftFeatures.size(); ++i)
 	{
 		circle(matchImage, leftFeatures[i].p, 2, (255, 255, 0), -1);
@@ -71,7 +70,7 @@ int main(int argc, char** argv)
 	waitKey(0);
 #endif
 
-	// Score features with Shi-Tomasi score, or Harris score
+	// Score features with Shi-Tomasi score
 	std::vector<Feature> goodLeftFeatures = ScoreAndClusterFeatures(leftImage, leftFeatures);
 	if (goodLeftFeatures.empty())
 	{
@@ -85,15 +84,14 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	// Sort features and cull each list to top MAX_NUM_FEATURES features
+	// cull each list to top MAX_NUM_FEATURES features
+	// Even after scoring, we still might have too many. This ensures that we don't waste processing later. 
 	if (goodLeftFeatures.size() > MAX_NUM_FEATURES)
 	{
-		sort(goodLeftFeatures.begin(), goodLeftFeatures.end(), FeatureCompare);
 		goodLeftFeatures.resize(MAX_NUM_FEATURES);
 	}
 	if (goodRightFeatures.size() > MAX_NUM_FEATURES)
 	{
-		sort(goodRightFeatures.begin(), goodRightFeatures.end(), FeatureCompare);
 		goodRightFeatures.resize(MAX_NUM_FEATURES);
 	}
 
@@ -132,7 +130,6 @@ int main(int argc, char** argv)
 	// Nearest neighbour matching with Lowe ratio test
 	// The first in each pair in matches is from the left; the second, from the right. 
 	std::vector<std::pair<Feature, Feature> > matches = MatchDescriptors(goodLeftFeatures, goodRightFeatures);
-	cout << "Number of matches: " << matches.size() << std::endl;
 
 	// Debug display
 #ifdef DEBUG

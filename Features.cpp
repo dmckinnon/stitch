@@ -5,29 +5,26 @@
 using namespace cv;
 using namespace std;
 
-/*
-	Feature function implementations
-
-	functions:
-	- Find all FAST features in an image
-		- Supporting functions for this
-	- Score features with Shi-Tomasi
-*/
 
 /*
-Given an image, return a vector of all FAST features in the image.
-This uses N=12 or above, and an adaptive threshold.
-Assumed: img is grayscale
-      16  1  2
-   15     +    3
-14        +      4
-13  +  +  p  + + 5
-12        +      6
-   11     +    7
-      10  9  8
+	FAST features
 
-We start with a threshold of 10?
-Something to experiment with
+	Given an image, return a vector of all FAST features in the image.
+	In 16 defined points surrounding a pixel, visualised below, we aim to
+	find a sequence of N=12 or more long where the points are all above or all below
+	the centre point value plus or minus a given threshold.
+	Assumed: img is grayscale
+		  16  1  2
+	   15     +    3
+	14        +      4
+	13  +  +  p  + + 5
+	12        +      6
+	   11     +    7
+		  10  9  8
+
+   The threshold I use is defined in Features.h and can be tuned. 
+   The helper functions implement an optimisation to reject bad points faster, 
+   and another function to black box the search for a sequential 12 or more. 
 */
 // Support function prototypes
 bool ThreeOfFourValuesBrighterOrDarker(int i1, int i5, int i9, int i13, int pb, int p_b);
@@ -35,23 +32,16 @@ bool CheckForSequential12(std::vector<int> points, int p_b, int pb);
 // Actual fast features function
 bool FindFASTFeatures(Mat img, vector<Feature>& features)
 {
-	// Multi-scale time
-
-
-	// For each pixel (three in from each side)
 	int width = img.cols;
 	int height = img.rows;
+	// For each pixel (three in from each side)
 	for (int h = FAST_SPACING; h < height - FAST_SPACING; ++h)
 	{
 		for (int w = FAST_SPACING; w < width - FAST_SPACING; ++w)
 		{
-			// TODO: Adapt a brightness threshold?
-
 			int p = img.at<uchar>(h, w);
 			int pb = p + FAST_THRESHOLD;
 			int p_b = p - FAST_THRESHOLD;
-
-			// Just make some threshold and figure out an adaptive threshold?
 
 			// For a speed-up, check 1, 9, then 5, 13
 			// Any three of 1,5,9,13 can be all brighter or darker. If not ... not a corner
