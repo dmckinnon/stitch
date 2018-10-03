@@ -1,5 +1,9 @@
 # Panorama stitching
 
+TODO: 
+- testing headings
+
+
 The aim of this tutorial and program is to go over all the constituent parts and theory of  panorama stitching, 
 as well as providing a reference solution.
 The best place to start after reading here is main.cpp, where each component is used in sequence. Then step into each function or file as necessary. 
@@ -70,7 +74,7 @@ OpenCV's explanation is pretty good, so I'll be brief with my own here, since it
 
 The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 pixels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals)
 
-### Stop - Exercise 1
+### Exercise 1
 At this point you should know enough theory to make at least a good attempt at Feature Detection - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once you are done with this, move on to **Feature Scoring**.
@@ -104,7 +108,7 @@ The final stage of the feature scoring is to perform Non-Maximal Suppresion (and
 
 So we do this over our feature set that we've already cut down. For every feature, if there are any features in a 5x5 patch around it that are weaker, we suppress these too, just to reduce the amount we have to process over.
 
-### Stop - Exercise 2
+### Exercise 2
 At this point you should know enough theory to make at least a good attempt at Feature Scoring - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once you've got this down, try **Feature Description**.
@@ -137,7 +141,7 @@ There are a couple of things worth mentioning. The angle of each gradient is tak
 
 All of this is explained with nice diagrams in the AI Shack link above. 
 
-### Stop - Exercise 3
+### Exercise 3
 At this point you should know enough theory to make at least a good attempt at Feature Description - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once this is working (Admittedly, this is hard to test without the next section), go on to **Feature Matching**. I actually recommend doing them together, but up to you. Feature matching is a good way to test Feature Description. 
@@ -155,7 +159,7 @@ Now we have to get the features from the left image and features from the right 
 
 When we have found the closest and second closest right-image features for a particular left-image feature, we take the ratio of their distances to the left-image feature to compare them. If DistanceToClosestRightImageFeature / DistanceToSecondClosestRightImageFeature < 0.8, this is considered a strong enough match, and we store these matching left and right features together. What is this ratio test? This was developed by Lowe, who also invented SIFT. His reasoning was that for this match to be considered strong, the feature closest in the descriptor space must be the closest feature by a clear bound - that is, it stands out and is obviously the closest, and not like "oh, it's a tiny bit closer than this other one". Mathematically, the closest feature should be less than 80 percent of the next closest feature. 
 
-### Stop - Exercise 4
+### Exercise 4
 At this point you should know enough theory to make at least a good attempt at Feature Matching - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once this is working - to test, see how many of your features between images match up -  go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
@@ -236,7 +240,7 @@ To achieve this we approximate the equation **e** = |**x**' - (H + *w*)**x**| by
 
 We solve this equation for *w* since we can compute everything else, and then apply the update to H by H(new) = H(old) + *w*. We then test how good this is by seeing if the error now is lower than the error from last time, and repeat. If the error at all increases, we know we have hit the bottom and started going up again, or we're just doing the wrong thing. In either case, we quit. If the error gets below a certain tiny threshold - this is good enough, no point computing more, and we quit. 
 
-### Stop - Exercise 5
+### Exercise 5
 At this point you should know enough theory to make at least a good attempt at finding the best transform - if you are trying to implement this yourself. If this takes you a lot of tries, and is full of bugs, don't worry! It took me _ages_ to get right. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once this is working - you can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up - then finish it off with **Composition**.
@@ -262,7 +266,7 @@ So we use H inverse = G to transform a _left-image_ pixel into _right image_ spa
 
 Now that we have the correct pixel values from each image in the same coordinate space, I simply average the corresponding ones together, and BAM, we're done!
 
-### Stop - Exercise 6
+### Exercise 6
 At this point you should know enough theory to make at least a good attempt at Composition - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
 Once this is working .... be proud!! You did it!
