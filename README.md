@@ -7,6 +7,33 @@ Each component has a comment block that I will also explain here, along with ref
 
 I started this project at suggestion from a colleague to learn in-depth (from scratch) more about computer vision. Specifically, I wanted to learn - _really learn_ - what features were, how they worked, how they were used, how you transformed between images, etc, and the various 'tool' algorithms computer vision engineers use (like RANSAC and Levenberg-Marquardt). The solution here is not the best solution. It is not optimised for efficiency or beauty or anything. I just coded it to work and be understandable. But it does indeed work and I learnt a lot doing it, and I hope anyone reading this can too. I encourage you to read the reference texts I give, learn the theory, and perhaps try to write the algorithms yourself and compare results with what I have. Another good thing to try is to tweak the parameters I mention below to 'retune' my solution, so to speak, and see how the results differ. I'll mention any tunable parameters  that I think would be good to try. A good dataset to work with, that was made to test panography programs, is Adobe's [panorama dataset]( https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download).
 
+# Contents:
+1. Components - an overview of the README
+2. Feature Detection
+    - Exercise 1
+    - Tunable Parameters
+    - Other notes
+3. Feature Scoring
+    - Exercise 2
+    - Tunable Parameters
+    - Other notes
+4. Feature Description
+    - Exercise 3
+    - Tunable Parameters
+    - Other notes
+5. Feature Matching
+    - Exercise 4
+    - Tunable Parameters
+    - Other notes   
+6. Finding the best transform
+    - Exercise 6
+    - Tunable Parameters
+    - Other notes
+7. Composition
+    - Exercise 6
+    - Tunable Parameters
+    - Other notes
+
 # Components
 So to get a panorama, you take a photo of something, say a mountain, and then you turn a bit and take another photo, maybe of the side of the mountain and the sunset next to it. And then some magical stuff happens and la-di-da, out pops the two images made nicely into one, such that you can't even see the join (hopefully). So what happens under the hood?
 I'll talk specifically about the case for two pictures, but it easily generalises - or iterates. Get the panorama from the two images, stitch in a third, and repeat.
