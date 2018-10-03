@@ -1,11 +1,42 @@
 # Panorama stitching
 
+TODO: 
+- testing headings
+
+
 The aim of this tutorial and program is to go over all the constituent parts and theory of  panorama stitching, 
 as well as providing a reference solution.
 The best place to start after reading here is main.cpp, where each component is used in sequence. Then step into each function or file as necessary. 
 Each component has a comment block that I will also explain here, along with reference texts.
 
-I started this project at suggestion from a colleague to learn in-depth (from scratch) more about computer vision. Specifically, I wanted to learn - _really learn_ - what features were, how they worked, how they were used, how you transformed between images, etc, and the various 'tool' algorithms computer vision engineers use (like RANSAC and Levenberg-Marquardt). The solution here is not the best solution. It is not optimised for efficiency or beauty or anything. I just coded it to work and be understandable. But it does indeed work and I learnt a lot doing it, and I hope anyone reading this can too. I encourage you to read the reference texts I give, learn the theory, and perhaps try to write the algorithms yourself and compare results with what I have. Another good thing to try is to tweak the parameters I mention below to 'retune' my solution, so to speak, and see how the results differ. I'll mention any specifically that I think would be good to try. A good dataset to work with, that was made to test panography programs, is Adobe's [panorama dataset]( https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download).
+I started this project at suggestion from a colleague to learn in-depth (from scratch) more about computer vision. Specifically, I wanted to learn - _really learn_ - what features were, how they worked, how they were used, how you transformed between images, etc, and the various 'tool' algorithms computer vision engineers use (like RANSAC and Levenberg-Marquardt). The solution here is not the best solution. It is not optimised for efficiency or beauty or anything. I just coded it to work and be understandable. But it does indeed work and I learnt a lot doing it, and I hope anyone reading this can too. I encourage you to read the reference texts I give, learn the theory, and perhaps try to write the algorithms yourself and compare results with what I have. Another good thing to try is to tweak the parameters I mention below to 'retune' my solution, so to speak, and see how the results differ. I'll mention any tunable parameters  that I think would be good to try. A good dataset to work with, that was made to test panography programs, is Adobe's [panorama dataset]( https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download).
+
+# Contents:
+1. Components - an overview of the README
+2. Feature Detection
+    - Exercise 1
+    - Tunable Parameters
+    - Other notes
+3. Feature Scoring
+    - Exercise 2
+    - Tunable Parameters
+    - Other notes
+4. Feature Description
+    - Exercise 3
+    - Tunable Parameters
+    - Other notes
+5. Feature Matching
+    - Exercise 4
+    - Tunable Parameters
+    - Other notes   
+6. Finding the best transform
+    - Exercise 6
+    - Tunable Parameters
+    - Other notes
+7. Composition
+    - Exercise 6
+    - Tunable Parameters
+    - Other notes
 
 # Components
 So to get a panorama, you take a photo of something, say a mountain, and then you turn a bit and take another photo, maybe of the side of the mountain and the sunset next to it. And then some magical stuff happens and la-di-da, out pops the two images made nicely into one, such that you can't even see the join (hopefully). So what happens under the hood?
@@ -21,7 +52,10 @@ Here is how I have broken down my code into components, based on the above. Each
 Features are basically identifiable parts of images. An image is an array of numbers. How do I know what is identifiable if I see it again in another image? How do I know what is important to track? A 'feature point' is this, and Feature Detection finds these points. These points are useful because we can find them again in the other image (see the paragraph below for a greater description of this). So we find a feature on a part of one image, and hopefully we can find the same feature in the other image. Using Feature Descriptors, the next section, we can compare features and know that we have found the same one. Multiple matched features then helps us in the later section Feature Matching, where we try to figure out how to go from one image to the other. If we have several feature points in one image, and have found the same in the other image, then we can figure out how the two images fit together ... and that, right there, is how panoramas work!
 
 
-There are a lot of different types of features, based on how you look for them. Here's a list of some:
+There are a lot of different types of features, based on how you look for them.
+
+#### Some common types of features:
+
 - FAST features
 - SIFT features
 - SURF features
@@ -30,7 +64,7 @@ There are a lot of different types of features, based on how you look for them. 
 
 There are plenty more. Some are simple, some are ... rather complex (read the wikipedia page for SIFT features, and enjoy). They each might find slightly different things, but in general, what 'feature detectors' aim to do is find points in an image that are sufficiently distinct that you can easily find that same feature again in another image - a future one, or the other of a stereo pair, for example. Features are distinct things like corners (of a table, of an eye, of a leaf, whatever), or edges, or points in the image where there is a lot of change in more than just one direction. To give an example of what is not a feature, think of a blank wall. Take a small part of it. Could you find that bit again on the wall? That exact bit? It's not very distinct, so you likely couldn't. Then take a picture of someone's face. If I gave you a small image snippet containing just a bit of the corner of an eye, you'd find where it fit very quickly. AIShack has a [rather good overview](http://aishack.in/tutorials/features/) of the general theory of features.
 
-Here, I'm using FAST features, also called FAST corners because they are specifically designed to find corners. 
+In this tutorial and program, I'm using FAST features. These are also called FAST corners because they are specifically designed to find corners. 
 
 - OpenCV's [Explanation of FAST](https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_fast/py_fast.html)
 - Here is a better [reference implementation of FAST](https://github.com/edrosten/fast-C-src), that is trained by a learner
@@ -38,7 +72,12 @@ Here, I'm using FAST features, also called FAST corners because they are specifi
 
 OpenCV's explanation is pretty good, so I'll be brief with my own here, since it's ... heavily influenced and copied from that.
 
-The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 picels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals)
+The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 pixels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals)
+
+### Exercise 1
+At this point you should know enough theory to make at least a good attempt at Feature Detection - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+Once you are done with this, move on to **Feature Scoring**.
 
 
 ### Tunable parameters
@@ -69,6 +108,10 @@ The final stage of the feature scoring is to perform Non-Maximal Suppresion (and
 
 So we do this over our feature set that we've already cut down. For every feature, if there are any features in a 5x5 patch around it that are weaker, we suppress these too, just to reduce the amount we have to process over.
 
+### Exercise 2
+At this point you should know enough theory to make at least a good attempt at Feature Scoring - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+Once you've got this down, try **Feature Description**.
 
 ### Tunable parameters
 ST_THRESH, found in Features.h. Changing this determines how many features we'll keep or throw away. Too high, and we keep very few features, since few have a super high score. Too low, and we keep too many and it just becomes noise and slows down processing unnecessarily. 
@@ -98,6 +141,11 @@ There are a couple of things worth mentioning. The angle of each gradient is tak
 
 All of this is explained with nice diagrams in the AI Shack link above. 
 
+### Exercise 3
+At this point you should know enough theory to make at least a good attempt at Feature Description - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+Once this is working (Admittedly, this is hard to test without the next section), go on to **Feature Matching**. I actually recommend doing them together, but up to you. Feature matching is a good way to test Feature Description. 
+
 ### Tunable parameters
 Technically, ILLUMINANCE_BOUND and NN_RATIO, both in Features.h, are tunable parameters, but Lowe (the inventor of SIFT) tuned these parameters already and found the values they have to be experimentally pretty good. Still, feel free to change them. 
 
@@ -110,6 +158,11 @@ So far we have found features, cut out the ones we don't want, and then made uni
 Now we have to get the features from the left image and features from the right image and ask "which of these are the same thing?" and then pair them up. There are some complicated ways to do this, that work fast and optimise certain scenarios (look up k-d trees, for example) but what I have done here is, by and large, pretty simple. I have two lists of features. For each feature in one list (I use the list from the left image), search through all features in the second list, and find the closest and second closest. 'Closest' here is defined by the norm of the vector difference between the descriptors. 
 
 When we have found the closest and second closest right-image features for a particular left-image feature, we take the ratio of their distances to the left-image feature to compare them. If DistanceToClosestRightImageFeature / DistanceToSecondClosestRightImageFeature < 0.8, this is considered a strong enough match, and we store these matching left and right features together. What is this ratio test? This was developed by Lowe, who also invented SIFT. His reasoning was that for this match to be considered strong, the feature closest in the descriptor space must be the closest feature by a clear bound - that is, it stands out and is obviously the closest, and not like "oh, it's a tiny bit closer than this other one". Mathematically, the closest feature should be less than 80 percent of the next closest feature. 
+
+### Exercise 4
+At this point you should know enough theory to make at least a good attempt at Feature Matching - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+Once this is working - to test, see how many of your features between images match up -  go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
 
 ### Tunable Parameters
 You can try to tune Lowe's ratio, which is NN_RATIO, defined in Features.h. Changing this determines how "strong matches" are made. 
@@ -187,7 +240,10 @@ To achieve this we approximate the equation **e** = |**x**' - (H + *w*)**x**| by
 
 We solve this equation for *w* since we can compute everything else, and then apply the update to H by H(new) = H(old) + *w*. We then test how good this is by seeing if the error now is lower than the error from last time, and repeat. If the error at all increases, we know we have hit the bottom and started going up again, or we're just doing the wrong thing. In either case, we quit. If the error gets below a certain tiny threshold - this is good enough, no point computing more, and we quit. 
 
+### Exercise 5
+At this point you should know enough theory to make at least a good attempt at finding the best transform - if you are trying to implement this yourself. If this takes you a lot of tries, and is full of bugs, don't worry! It took me _ages_ to get right. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
+Once this is working - you can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up - then finish it off with **Composition**.
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
@@ -209,6 +265,11 @@ When I have a vector **x** = (x,y,1) and transform it to **x**' = H**x** ... wel
 So we use H inverse = G to transform a _left-image_ pixel into _right image_ space, by **y**' = G**y**, and it's going to not be pixel-aligned either. We then use [Bilinear Interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation) to figure out the correct sub-pixel value for this point, and then we take that value as the right image pixel value to stitch at **y** in the left image coordinate space. Interpolation is how we approximate a value between two known points, when we can't sample any finer than those points. For example, if you know that for some function f(x), f(0) = 0 and f(1) = 1, and you want to guess the value at x=0.8, then you can use [linear interpolation](https://en.wikipedia.org/wiki/Linear_interpolation), which says it's going to be 0.8 times the value at x = 1 averaged with 0.2 times the value at x = 0. Bilinear interpolation is simply the two dimensional version of this. 
 
 Now that we have the correct pixel values from each image in the same coordinate space, I simply average the corresponding ones together, and BAM, we're done!
+
+### Exercise 6
+At this point you should know enough theory to make at least a good attempt at Composition - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+Once this is working .... be proud!! You did it!
 
 ### Tunable Parameters
 None, really. This is probably the simplest step.
