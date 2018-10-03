@@ -177,16 +177,21 @@ N.B. I mentioned Optimisation above, and if you want, you can black box this too
 
 **Optimsation**:
 
-The idea behind optimisation is that we have some function, f(**x**), that we are comparing to some data, **y**, and it's off by some error **e** = |**y** - f(**x**)|. It'd be nice if we could make that error smaller by tweaking the function f. Well, we can. Remember that if you want to find the local minimum of a function, you find the derivative and set that to zero? And solve for the point, and that point is the minimal point of the function?
+The idea behind [optimisation](http://ethaneade.com/optimization.pdf) is that we have some function, f(**x**), that we are comparing to some data, **y**, and it's off by some error **e** = |**y** - f(**x**)|. It'd be nice if we could make that error smaller by tweaking the function f. Well, we can. Remember that if you want to find the local minimum of a function, you find the derivative and set that to zero? And solve for the point, and that point is the minimal point of the function?
 
-Well, same theory applies here. I'm using a variant of [Gauss-Newton Optimisation]() called [Levenberg-Marquardt Optimisation](). These both do approximately the same thing. We want to fine-tune our estimate of H, right? Make it as good as possible. Since the homography computation can only get so good on four points, we use optimisation across all the points to tweak H, which in this section is represented by f, to reduce the error **e** = |**x**' - H**x**|.
+Well, same theory applies here. I'm using a variant of [Gauss-Newton Optimisation](https://en.wikipedia.org/wiki/Gauss%E2%80%93Newton_algorithm) called [Levenberg-Marquardt Optimisation](https://en.wikipedia.org/wiki/Levenberg%E2%80%93Marquardt_algorithm). These both do approximately the same thing. We want to fine-tune our estimate of H, right? Make it as good as possible. Since the homography computation can only get so good on four points, we use optimisation across all the points to tweak H, which in this section is represented by f, to reduce the error **e** = |**x**' - H**x**|.
 
-Unfortunately it's hard to write a lot of the math here so I'm going to try my best without equations. 
+Unfortunately it's hard to write a lot of the math here so I'm going to try my best without equations. Following the steps mentioned in the solution section of the [Levenberg-Marquardt wikipedia page](https://en.wikipedia.org/wiki/Levenberg%E2%80%93Marquardt_algorithm), we want to solve for a small update to H to tweak it in the right direction. So we want to replace H with H + *w*, where *w* is some 3x3 matrix of small numbers. The idea is that we'll use the derivative of this function to find the direction of the gradient, and then make a change in that direction. This means that we move down towards the minimum (This is so much easier with diagrams).
+
+To achieve this we approximate the equation **e** = |**x**' - (H + *w*)**x**| by the first order Taylor series approximation, giving **e** = |**x**' - H**x** - **J***w*|, where J is the Jacobian (multidimensional derivative) of H evaluated at **x**. We then differentiate this and solve for **e** = **0**. This leads to **J**t * **J** * *h* = **J**t * e; in words, this is the Jacobian of H (transposed) times the Jacobian of H times the small update to H all equal to the Jacobian of H (transposed) times the original error vector. If the math doesn't make sense ... well ... that's ok. It's not simple, and I'm sorry I can't explain it well. A good explanation is [here, written by Ethan Eade](http://ethaneade.com/optimization.pdf).
+
+We solve this equation for *w* since we can compute everything else, and then apply the update to H by H(new) = H(old) + *w*. We then test how good this is by seeing if the error now is lower than the error from last time, and repeat. If the error at all increases, we know we have hit the bottom and started going up again, or we're just doing the wrong thing. In either case, we quit. If the error gets below a certain tiny threshold - this is good enough, no point computing more, and we quit. 
 
 
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
+- There are other parameters to tune for the various thresholds mentioned, but they are harder to tune obviously and see the effect of.
 
 ### Other notes
 - There are other ways to do optimisation, and this is by no means the best or worst or whatever. But that's getting a bit deep and too much for here. 
@@ -218,7 +223,7 @@ None, really. This is probably the simplest step.
 - Finally, this step can be parallelised, and may be the easiest spot to do so. Every pixel can be computed independently of every other. Try to figure out the optimal method of parallelising this! I've given one solution in the code comments already. 
 
 ## How to read the code
-
+I've included explanations and links above each major function, as well as the helper functions they use and the purpose each serves. I've also commented the code heavily. The way I read it is you go through main, and then dive into each component as it is used, and then back out to main, to retain context. 
 
 ## Building and running
 I've included in the repo the .exe and the necessary dlls to just run this straight out of the box. It takes in two command-line arguments - the absolute paths of the two images, ordered left (first arg) and right (second arg) (the order shouldn't actually matter), and spits out panorama.jpg, which is the stitched image. If something fails, it prints error messages. 
