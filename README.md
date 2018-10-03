@@ -33,7 +33,7 @@ There are a lot of different types of features, based on how you look for them.
 
 There are plenty more. Some are simple, some are ... rather complex (read the wikipedia page for SIFT features, and enjoy). They each might find slightly different things, but in general, what 'feature detectors' aim to do is find points in an image that are sufficiently distinct that you can easily find that same feature again in another image - a future one, or the other of a stereo pair, for example. Features are distinct things like corners (of a table, of an eye, of a leaf, whatever), or edges, or points in the image where there is a lot of change in more than just one direction. To give an example of what is not a feature, think of a blank wall. Take a small part of it. Could you find that bit again on the wall? That exact bit? It's not very distinct, so you likely couldn't. Then take a picture of someone's face. If I gave you a small image snippet containing just a bit of the corner of an eye, you'd find where it fit very quickly. AIShack has a [rather good overview](http://aishack.in/tutorials/features/) of the general theory of features.
 
-Here, I'm using FAST features, also called FAST corners because they are specifically designed to find corners. 
+In this tutorial and program, I'm using FAST features. These are also called FAST corners because they are specifically designed to find corners. 
 
 - OpenCV's [Explanation of FAST](https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_fast/py_fast.html)
 - Here is a better [reference implementation of FAST](https://github.com/edrosten/fast-C-src), that is trained by a learner
