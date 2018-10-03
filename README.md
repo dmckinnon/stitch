@@ -43,6 +43,9 @@ OpenCV's explanation is pretty good, so I'll be brief with my own here, since it
 
 The idea behind FAST is that corners usually have two lines leading away from them, and that the intensity of the pixels in one of the two angles created by those lines will be either lighter or darker than the other. For example, think of the corner of a roof with the sun above. Two lines (the roof edges) come out from the corner, and below will be darker than above. The way a FAST feature detector works is that for each pixel, it scans a circle of 16 pixels around it, about 3 pixels radius, and compares the intensities to the centre intensity (plus or minus a threshold). If there is a stretch of sequential pixels 12 or more in length that are all of greater intensity (plus a threshold) than the centre, or lesser intensity (minus a threshold) than the centre, this is deemed a FEATURE. (OpenCV's explanation has some better visuals)
 
+### Stop!
+At this point you should know enough theory to make at least a good attempt at the algorithm - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. The section after contains minor notes, but nothing important.
+
 
 ### Tunable parameters
 FAST_THRESHOLD, found in Features.h. Changing this will determine how much brighter or darker the ring of pixels around a certain point needs to be for it to be noted as a feature. Eg. a value of 1 means that too many points will be features - blank walls have a pixel-to-pixel variance that's likely bigger. A value of 100 means that you'll barely get any features at all, since you need a sequence of at least 12 pixels that are centre pixel intensity + 100, which ou tof 255 possible values is a large change. 
@@ -72,6 +75,8 @@ The final stage of the feature scoring is to perform Non-Maximal Suppresion (and
 
 So we do this over our feature set that we've already cut down. For every feature, if there are any features in a 5x5 patch around it that are weaker, we suppress these too, just to reduce the amount we have to process over.
 
+### Stop!
+At this point you should know enough theory to make at least a good attempt at the algorithm - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. The section after contains minor notes, but nothing important.
 
 ### Tunable parameters
 ST_THRESH, found in Features.h. Changing this determines how many features we'll keep or throw away. Too high, and we keep very few features, since few have a super high score. Too low, and we keep too many and it just becomes noise and slows down processing unnecessarily. 
@@ -100,6 +105,9 @@ Ok, so we can identify a little patch with one edge. But aren't features corners
 There are a couple of things worth mentioning. The angle of each gradient is taken relative to the angle of the feature (when we create the feature, we measure the angle of the gradient in a smaller patch centred on the feature), to make this descriptor rotationally invariant. Another thing is that all the magnitudes are normalised, capped at 0.2, and normalised again, so as to make the vector invariant to drastic illumination. This all means that if we look at the feature again from a different angle, or under mildly different lighting, we should still be able to uniquely match it to the original. 
 
 All of this is explained with nice diagrams in the AI Shack link above. 
+
+### Stop!
+At this point you should know enough theory to make at least a good attempt at the algorithm - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. The section after contains minor notes, but nothing important.
 
 ### Tunable parameters
 Technically, ILLUMINANCE_BOUND and NN_RATIO, both in Features.h, are tunable parameters, but Lowe (the inventor of SIFT) tuned these parameters already and found the values they have to be experimentally pretty good. Still, feel free to change them. 
@@ -190,7 +198,8 @@ To achieve this we approximate the equation **e** = |**x**' - (H + *w*)**x**| by
 
 We solve this equation for *w* since we can compute everything else, and then apply the update to H by H(new) = H(old) + *w*. We then test how good this is by seeing if the error now is lower than the error from last time, and repeat. If the error at all increases, we know we have hit the bottom and started going up again, or we're just doing the wrong thing. In either case, we quit. If the error gets below a certain tiny threshold - this is good enough, no point computing more, and we quit. 
 
-
+### Stop!
+At this point you should know enough theory to make at least a good attempt at the algorithm - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. The section after contains minor notes, but nothing important.
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
@@ -212,6 +221,9 @@ When I have a vector **x** = (x,y,1) and transform it to **x**' = H**x** ... wel
 So we use H inverse = G to transform a _left-image_ pixel into _right image_ space, by **y**' = G**y**, and it's going to not be pixel-aligned either. We then use [Bilinear Interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation) to figure out the correct sub-pixel value for this point, and then we take that value as the right image pixel value to stitch at **y** in the left image coordinate space. Interpolation is how we approximate a value between two known points, when we can't sample any finer than those points. For example, if you know that for some function f(x), f(0) = 0 and f(1) = 1, and you want to guess the value at x=0.8, then you can use [linear interpolation](https://en.wikipedia.org/wiki/Linear_interpolation), which says it's going to be 0.8 times the value at x = 1 averaged with 0.2 times the value at x = 0. Bilinear interpolation is simply the two dimensional version of this. 
 
 Now that we have the correct pixel values from each image in the same coordinate space, I simply average the corresponding ones together, and BAM, we're done!
+
+### Stop!
+At this point you should know enough theory to make at least a good attempt at the algorithm - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. The section after contains minor notes, but nothing important.
 
 ### Tunable Parameters
 None, really. This is probably the simplest step.
