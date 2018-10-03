@@ -21,7 +21,9 @@ Here is how I have broken down my code into components, based on the above. Each
 Features are basically identifiable parts of images. An image is an array of numbers. How do I know what is identifiable if I see it again in another image? How do I know what is important to track? A 'feature point' is this, and Feature Detection finds these points. These points are useful because we can find them again in the other image (see the paragraph below for a greater description of this). So we find a feature on a part of one image, and hopefully we can find the same feature in the other image. Using Feature Descriptors, the next section, we can compare features and know that we have found the same one. Multiple matched features then helps us in the later section Feature Matching, where we try to figure out how to go from one image to the other. If we have several feature points in one image, and have found the same in the other image, then we can figure out how the two images fit together ... and that, right there, is how panoramas work!
 
 
-There are a lot of different types of features, based on how you look for them. Here's a list of some:
+There are a lot of different types of features, based on how you look for them.
+**Some common types of features**:
+
 - FAST features
 - SIFT features
 - SURF features
