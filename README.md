@@ -22,7 +22,8 @@ Features are basically identifiable parts of images. An image is an array of num
 
 
 There are a lot of different types of features, based on how you look for them.
-**Some common types of features**:
+
+#### Some common types of features:
 
 - FAST features
 - SIFT features
