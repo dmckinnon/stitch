@@ -77,6 +77,8 @@ The idea behind FAST is that corners usually have two lines leading away from th
 ### Exercise 1
 At this point you should know enough theory to make at least a good attempt at Feature Detection - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
+What's a good way to test if this is working? Use OpenCV's image display and draw on image functions - I've got them wrapped in #ifdef's in main.cpp - to draw a small circle over each detected feature in your image, and then display it. These should be over things like corners, points of sharp change, some edges, etc. If you have features on smooth blank areas ... you have an error. 
+
 Once you are done with this, move on to **Feature Scoring**.
 
 
@@ -110,6 +112,8 @@ So we do this over our feature set that we've already cut down. For every featur
 
 ### Exercise 2
 At this point you should know enough theory to make at least a good attempt at Feature Scoring - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+What's a good way to test this? Well, use the image and point display from Exercise 1. Display all features, and then your scored "best" features, side by side. The ones that remain after scoring should be on really distinct patches like the corner of an eye, or a building, and less on edges of things. There should also be far fewer. 
 
 Once you've got this down, try **Feature Description**.
 
