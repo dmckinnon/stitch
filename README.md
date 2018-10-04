@@ -1,9 +1,5 @@
 # Panorama stitching
 
-TODO: 
-- testing headings
-
-
 The aim of this tutorial and program is to go over all the constituent parts and theory of  panorama stitching, 
 as well as providing a reference solution.
 The best place to start after reading here is main.cpp, where each component is used in sequence. Then step into each function or file as necessary. 
