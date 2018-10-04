@@ -148,6 +148,8 @@ All of this is explained with nice diagrams in the AI Shack link above.
 ### Exercise 3
 At this point you should know enough theory to make at least a good attempt at Feature Description - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
+A good method of testing this is to give as input an image that is entirely white apart from a black square. You should only get strong features on the corners of the square. Furthermore, since SIFT feature descriptors are rotationally invariant, the descriptors should all be pretty similar. This can be tested by looking at the euclidean distance between two descriptors - this should be some relatively small number . It's hard to give an absolute value here, but you could compare it to the average distance between features on a normal image,
+
 Once this is working (Admittedly, this is hard to test without the next section), go on to **Feature Matching**. I actually recommend doing them together, but up to you. Feature matching is a good way to test Feature Description. 
 
 ### Tunable parameters
@@ -166,7 +168,9 @@ When we have found the closest and second closest right-image features for a par
 ### Exercise 4
 At this point you should know enough theory to make at least a good attempt at Feature Matching - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
-Once this is working - to test, see how many of your features between images match up -  go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
+To test, see how many of your features between images match up .. or you could use the testing setup from the last exercise.
+
+Once this is working,go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
 
 ### Tunable Parameters
 You can try to tune Lowe's ratio, which is NN_RATIO, defined in Features.h. Changing this determines how "strong matches" are made. 
@@ -247,7 +251,9 @@ We solve this equation for *w* since we can compute everything else, and then ap
 ### Exercise 5
 At this point you should know enough theory to make at least a good attempt at finding the best transform - if you are trying to implement this yourself. If this takes you a lot of tries, and is full of bugs, don't worry! It took me _ages_ to get right. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
-Once this is working - you can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up - then finish it off with **Composition**.
+You can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up. Another method is to generate some point pairs, where each pair has two of the same point. The homography generated should then be the identity matrix. To test this on optimsation, add some small error, like +/- .1, to each value. The optimiser should return the homography to what it originally was.
+
+Once this is working, then finish it off with **Composition**.
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
@@ -255,6 +261,7 @@ Once this is working - you can display the images to test this, cos if you trans
 
 ### Other notes
 - There are other ways to do optimisation, and this is by no means the best or worst or whatever. But that's getting a bit deep and too much for here. 
+- TODO - normalisation of points
 
 
 ## Composition
@@ -272,6 +279,8 @@ Now that we have the correct pixel values from each image in the same coordinate
 
 ### Exercise 6
 At this point you should know enough theory to make at least a good attempt at Composition - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+To test: display the final image and eyeball it? 
 
 Once this is working .... be proud!! You did it!
 
