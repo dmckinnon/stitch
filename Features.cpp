@@ -413,9 +413,9 @@ std::vector<Feature> ScoreAndClusterFeatures(Mat img, vector<Feature>& features)
 	Create SIFT descriptors for each feature given.
 	http://aishack.in/tutorials/sift-scale-invariant-feature-transform-features/
 
-	First, we use the SIFT method of computing the orientation of each pixel. 
+	First, we use the SIFT method of computing the orientation of each feature point. 
 	Every subsequent orientation, like the gradients below, is taken relative to this
-	to ensure invariance to orientation.
+	to ensure invariance to feature rotation.
 
 	In a 16x16 window around the feature, we create 16 4x4 windows.
 	In each window, we create an 8 bin histogram for gradient orientation, weighting
@@ -459,10 +459,7 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 	Sobel(smoothed, grad_x, ddepth, 1, 0, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 	Sobel(smoothed, grad_y, ddepth, 0, 1, ST_WINDOW, scale, delta, BORDER_DEFAULT);
 
-	// gradient is empty
-
-	// Gaussian kernel for weighting descriptor entries
-	// TODO: should this sigma be something else?
+	// Construct a Gaussian kernel for weighting descriptor entries
 	Mat gaussKernel = Mat(DESC_SUB_WINDOW, DESC_SUB_WINDOW, CV_32F, 1);
 	for (int i = 0; i < DESC_SUB_WINDOW; ++i) for (int j = 0; j < DESC_SUB_WINDOW; ++j) gaussKernel.at<float>(i, j) = 1;
 	GaussianBlur(gaussKernel, gaussKernel, Size(ST_WINDOW, ST_WINDOW), 1.5, 1.5, BORDER_DEFAULT);
@@ -480,9 +477,10 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 		// Weight the histogram
 		// Add these to the vector
 		int vecEntryIndex = 0;
+		// I'm supposed to interpolate here and use sub-pixel values cos otherwise the feature
+		// point isn't aligned with the centre.
 		// Instead of interpolating, we're just going to create the window with
 		// the feature at 8,8. It'll work as an approximation
-		// TODO: interpolate
 		for (unsigned int j = 0; j < DESC_WINDOW; j += DESC_SUB_WINDOW)
 		{
 			for (unsigned int k = 0; k < DESC_WINDOW; k += DESC_SUB_WINDOW)
@@ -502,6 +500,8 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 						if (imgX < 0 || imgX >= grad_x.cols)
 							continue;
 
+						// Get angle and magnitude of gradient at this point, and add
+						// into the histogram at the right bin
 						float gX = (float)grad_x.at<uchar>(imgY, imgX);
 						float gY = (float)grad_y.at<uchar>(imgY, imgX);
 						float mag = sqrt(gX*gX + gY * gY);
@@ -532,7 +532,6 @@ bool CreateSIFTDescriptors(cv::Mat img, std::vector<Feature>& features, std::vec
 		{
 			std::cout << "Error: feature vector length = " << descVec.size() << std::endl;
 			continue;
-			// return false;
 		}
 
 		// Cap every entry to 0.2 max, to remove illumination dependence
@@ -586,13 +585,14 @@ void ComputeFeatureOrientation(Feature& feature, Mat xgrad, Mat ygrad)
 			if (j < 0 || j >= xgrad.cols)
 				continue;
 
+			// Get the angle and the magnitude of the gradient at this point, and
+			// add it into the histogram at the right bin
 			float gX = (float)xgrad.at<uchar>(i,j);
 			float gY = (float)ygrad.at<uchar>(i,j);
 			float mag = sqrt(gX*gX + gY* gY);
 			float angle = 0.f;
 			if (gX != 0)
 				angle = RAD2DEG(atan(gY / gX));
-			//cout << "Gradients and angle: " << gX << " " << gY << " " << angle << endl;
 			hist[(int)(angle / 10)] += mag * gaussKernel.at<float>(n+(ANGLE_WINDOW/2), m+(ANGLE_WINDOW/2));
 		}
 	}

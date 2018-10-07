@@ -19,6 +19,9 @@ using namespace Eigen;
 /* Function Implementations */
 int main(int argc, char** argv)
 {
+	// Before you start, if you want a good comprehensive overview of Panorama stitching
+	// and the theory, this is pretty good: https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
+
 	// pull in both images. The first is the left and the second is the right
 	// In theory it doesn't actually matter though
 	if (argc < 3)

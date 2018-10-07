@@ -11,10 +11,6 @@ using namespace std;
 using namespace Eigen;
 
 /*
-	Compositor function implementations
-*/
-
-/*
 	Get final image size, by predicting the overlap and getting 
 	the largest rectangle that fits over this
 */
@@ -42,8 +38,6 @@ pair<int, int> GetFinalImageSize(const Mat& img1, const Mat& img2, const Matrix3
 	both, containing the stitched images. 
 
 	We do not assume that the images are the same size.
-
-	Should this fail, we return a 1x1 Mat that contains the value 0. 
 */
 // Support functions
 uchar BilinearInterpolatePixel(const Mat& img, const float& x, const float& y)

@@ -11,48 +11,44 @@ using namespace std;
 using namespace Eigen;
 
 /*
-	Estimation function implementations
-*/
-
-/*
 	Find the best homography between the two images. This is returned in H.
 
 	Using a RANSAC approach, pick four random matches. Estimate the homography between
 	the images using just these four. Measure the success of this homography by how well
-	it predicts the rest of the matches. If it is below some epsilon, done!
-	If not, repeat for another random four.
+	it predicts the rest of the matches. Refine the homography for the inlier set, 
+	and count new number of inliers. Repeat until no more inliers. Measure the error.
+	Take the best of these.
+	Repeat for another random four.
 
 	We'll do this a maximum number of times, and remember the best.
 	If we never find a homography that produces matches below the epsilon, well,
 	maybe this image pair just ain't good, yeah?
 
-	NOTE: We scale and shift the points to have 0 mean and std dev of 1
+	NOTE: We can scale and shift the points to have 0 mean and std dev of 1.
+	This can be useful if most of your matches are on one part of the image, with a few elsewhere - 
+	it can unfairly weight parts of the image. 
+
+	I don't normalise, and I get results that are fine. 
 */
 // Support functions
 void GetRandomFourIndices(int& i1, int& i2, int& i3, int& i4, int max, const vector<pair<Feature, Feature> >& matches)
 {
-	// if the match scores at any of the indices are above a certain threshold, keep looking
+	i1 = rand() % max;
 
-	// DEBUG
-	//srand(5);
-	//do {
-		i1 = rand() % max;
-		//cout << "Match score: " << matches[i1].first.distFromBestMatch << endl;
-	//} while (matches[i1].first.distFromBestMatch > MATCH_THRESHOLD);
 	do
 	{
 		i2 = rand() % max;
-	} while (i2 == i1);// || matches[i2].first.distFromBestMatch > MATCH_THRESHOLD);
+	} while (i2 == i1);
 
 	do
 	{
 		i3 = rand() % max;
-	} while (i3 == i1 || i3 == i2);// || matches[i3].first.distFromBestMatch > MATCH_THRESHOLD);
+	} while (i3 == i1 || i3 == i2);
 
 	do
 	{
 		i4 = rand() % max;
-	} while (i4 == i1 || i4 == i2 || i4 == i3);// || matches[i4].first.distFromBestMatch > MATCH_THRESHOLD);
+	} while (i4 == i1 || i4 == i2 || i4 == i3);
 }
 // Normalise points
 pair<Matrix3f, Matrix3f> ConvertPoints(const vector<pair<Feature, Feature> >& matches)
@@ -106,6 +102,10 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 	srand(time(NULL));
 
 	// Get normalisation matrices, and normalise all points in the matches
+	// This distributes the points across a normal distribution, mean 0 std dev 1. 
+	// This is to counteract any uneven distribution of points, that might weight a homography
+	// towards a certain part of the image. Technically, refinement should fix this. 
+	// You can try turning this on and see what effect it has
 	/*auto normalisationMatrixPair = ConvertPoints(matches);
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
@@ -123,6 +123,10 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 	}*/
 
 	// RANSAC
+	// For a maximum of MAX_RANSAC_ITERATIONS, pick four matches at random
+	// Create a homography, perform the tests, refine etc, see how it is
+	// If it meets the bar for quality, break. 
+	// If not, keep trying
 	int maxInliers = 0;
 	Matrix3f bestH;
 	int numMatches = matches.size();
@@ -146,7 +150,7 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 		if (!GetHomographyFromMatches(points, H))
 			continue;
 		
-		// Test the homography with all points
+		// Test the homography again all matches
 		// Normalise homography
 		H /= H(2, 2);
 		auto set = EvaluateHomography(matches, H);
@@ -156,6 +160,8 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 			inlierSet = set;
 			bestH = H;
 		}
+
+		// TODO: add L-M here
 
 		// Not enough inliers. Loop again
 	}
@@ -187,20 +193,14 @@ bool FindHomography(Matrix3f& homography, vector<pair<Feature,Feature> > matches
 }
 
 /*
-	resources on SVD:
-	https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf
-	https://www.cse.unr.edu/~bebis/CS791E/Notes/SVD.pdf
-	https://hal.inria.fr/file/index/docid/174739/filename/RR-6303.pdf
-	https://blog.statsbot.co/singular-value-decomposition-tutorial-52c695315254
-	https://cims.nyu.edu/~donev/Teaching/NMI-Fall2010/Lecture5.handout.pdf
-	https://eigen.tuxfamily.org/dox/group__SVD__Module.html
-	https://www.uio.no/studier/emner/matnat/its/UNIK4690/v16/forelesninger/lecture_4_3-estimating-homographies-from-feature-correspondences.pdf
+	Singular Value Decomposition
+	This is where we actually construct the homography, for a given set of four matching pairs. 
+	This is quite tricky to describe in just text, so I've linked everything I used to figure this out,
+	in the README, under https://github.com/dmckinnon/stitch#finding-the-best-transform
 
 	Find the homography for four sets of corresponding points
 
 	How do we estimate the homography?
-	TODO: First, normalise all points
-	TODO: Scale so that average distance to origin is srt(2) - apparently this makes it behave nicely?
 
 	Create the Matrix A, which is
 	[ -u1  -v1  -1   0    0    0   u1u'1  v1u'1  u'1]
@@ -274,9 +274,12 @@ bool GetHomographyFromMatches(const vector<pair<Point, Point>> points, Matrix3f&
 	Evaluate a potential Homography, given the two lists of points. 
 	The homography transforms from the second in each pair to the first. 
 
-	Compute the euclidean difference between Hx and x', for each pair. 
-	From this, sort and get the median, then the average. Return the median, 
-	as we want to be robust to outliers. 
+	We compute what's called the projective error (where we use H to project x into
+	the other image and get the difference), and the reprojective error (where we use
+	H inverse to project x' into the image for x and get the difference). 
+	These can be added to get a good idea of the total error.
+
+	We count the number of inliers, and return the inlier set and TODO: the error
 */
 vector<pair<Feature, Feature> > EvaluateHomography(const vector<pair<Feature,Feature> >& matches, const Matrix3f& H)
 {
@@ -284,10 +287,10 @@ vector<pair<Feature, Feature> > EvaluateHomography(const vector<pair<Feature,Fea
 	int numInliers = 0;
 	float allError = 0;
 	vector<pair<Feature, Feature>> inlierSet;
+	// Over all matches
 	for (unsigned int i = 0; i < matches.size(); ++i)
 	{
-		// Convert both points to Eigen points, in normalised homogeneous coords
-		// TODO: should these be in pixel, or normalised?
+		// Convert both points to Eigen points
 		Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
 		Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
 
@@ -304,7 +307,6 @@ vector<pair<Feature, Feature> > EvaluateHomography(const vector<pair<Feature,Fea
 		auto projectiveDiff = xprime - Hx;
 		auto reprojectiveDiff = x - Hxprime;
 		float totalError = projectiveDiff.norm() + reprojectiveDiff.norm();
-		//std::cout << totalError << endl;
 		if (totalError < POSITIONAL_UNCERTAINTY * RANSAC_INLIER_MULTIPLER)
 		{
 			numInliers++;
@@ -318,13 +320,12 @@ vector<pair<Feature, Feature> > EvaluateHomography(const vector<pair<Feature,Fea
 
 /*
 	Bundle Adjustment
-	http://www.cs.unc.edu/~marc/tutorial/node159.html
-	https://engineering.purdue.edu/kak/computervision/ECE661.08/solution/hw5_s2.pdf
+	See https://github.com/dmckinnon/stitch/blob/master/README.md#finding-the-best-transform, optimsation
 
 	The formula for J comes from Multiple View Geometry, page 146, equ. 5.11
 
 	Here is an explanation and a derivation. This also explains how to get the covariance
-	I think
+	I think. See pages 12, 13, 14
 	https://pdfs.semanticscholar.org/66e4/283c28a2a93c4d4674f4213e1e9f67cfc737.pdf
 
 	Ethan Eade on optimisation:
@@ -348,8 +349,7 @@ float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Ma
 
 		// Get the error term
 		auto projectiveDiff = xprime - H * x;
-		//auto reprojectiveDiff = x - H.inverse() * xprime;
-		error += projectiveDiff.norm();// +reprojectiveDiff.norm();
+		error += projectiveDiff.norm();
 	}
 
 	return error;
@@ -357,15 +357,15 @@ float ErrorInHomography(const vector<pair<Feature, Feature> >& matches, const Ma
 // Actual function
 void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& H)
 {
-
 	// L-M update parameter
 	float lambda =  .001f;
-	float prevError = 100000000;// ErrorInHomography(matches, H);
-	cout << "Bundling on " << matches.size() << " points" << endl;
+	float prevError = 100000000; // Some massive number so that our first error is always acceptable
 	for (int its = 0; its < MAX_BA_ITERATIONS; ++its)
 	{
 		unsigned int i = 0;
 
+		// These first two loops exist only to compute the standard deviation
+		// for the huber and tukey cost functions
 
 		// Get error vector, std dev vector, and Hx vector
 		vector<Vector2f> errors;
@@ -402,14 +402,13 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 
 		VectorXf update(9);
-		//Vector2f error_accum;
-		//error_accum.setZero();
 		float error_accum = 0;
 		MatrixXf JtJ(9, 9);
 		JtJ.setZero();
 		VectorXf Jte(9);
 		Jte.setZero();
 
+		// This loop is the actual refinement
 		for (i = 0; i < matches.size(); ++i)
 		{
 			// As above, first is x, the point on the right,
@@ -426,6 +425,7 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 			float costWeight = 1.f;
 			float objectiveValue = 0.f;
+			// use a robust cost function, but only if we need to
 			/*if (i > 5)
 				Huber(errors[i].norm(), stddev, objectiveValue, costWeight);
 			else
@@ -443,18 +443,17 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 			JtJ += costWeight * J.transpose() * J;
 			Jte += costWeight * J.transpose() * e2;
 
-			error_accum += e2.norm();// objectiveValue;// e2.norm();
+			error_accum += e2.norm();
 		}
 
 		// Levenberg-Marquardt update
-		// TODO: pick a lambda, update lambda
 		for (i = 0; i < JtJ.rows(); ++i)
 		{
 			JtJ(i, i) += lambda * JtJ(i, i);
 		}
 
 		// Compute the update
-		update = JtJ.inverse() * Jte; // is there a negative here?
+		update = JtJ.inverse() * Jte;
 		Matrix3f updateToH;
 		updateToH << update(0), update(1), update(2),
 			update(3), update(4), update(5),
@@ -462,193 +461,31 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 
 		float currError = error_accum;
 
+		// Early cutoff if our error is low enough
 		if (currError < BA_THRESHOLD)
 		{
-			cout << "Error is " << currError << " which is below threshold - early cutoff" << endl;
 			break;
 		}
-		cout << "CurrError: " << currError << " previous error:  " << prevError << " and lambda is " << lambda << endl;
+		// Update and continue if good enough
 		if (currError < prevError)
 		{
-			// update and continue
 			lambda /= 10;
-			prevError = currError;
-
-			
+			prevError = currError;	
 		}
 		else
 		{
 			lambda *= 10;
 		}
-
-		cout << "Update: " << endl << updateToH << endl;
 
 		H += updateToH;
-		H /= H(2, 2);
-		cout << "H: " << endl << H << endl;
-
-		
+		H /= H(2, 2);		
 	}
 	return;
-		
-		
-		
-		
-		
-		
-		
-		
-		/*void(*costFunc)(const float&, const float&, float&, float&);
-
-		// Get error vector, std dev vector, and Hx vector
-		vector<Vector2f> errors;
-		float avg = 0;
-		float stddev = 0;
-		vector<Vector3f> hxVals;
-		for (i = 0; i < matches.size(); ++i)
-		{
-			// As above, first is x, the point on the right,
-			// and second is x', the point on the left
-			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
-			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y, 1);
-
-			// Get the error term
-			Vector3f Hx = H * x;
-			float w = Hx(2);
-			Hx /= w;
-			Vector3f e = xprime - Hx;
-			Vector2f e2(e(0), e(1));
-			
-			errors.push_back(e2);
-			hxVals.push_back(Hx);
-
-			avg += e2.norm();
-		}
-		avg /= matches.size();
-
-		// Now compute the std dev
-		for (i = 0; i < errors.size(); ++i)
-		{
-			stddev += pow(errors[i].norm() - avg, 2);
-		}
-		stddev = sqrt(stddev);
-		*/
-		/*
-
-		// loop over these and compute cost function,
-		// then accumulate jacobians
-		assert(errors.size() == hxVals.size());
-		for (i = 0; i < errors.size(); ++i)
-		{
-			Vector3f x(matches[i].second.p.x, matches[i].second.p.y, 1);
-			auto& Hx = hxVals[i];
-			float w = (H * x)(2);
-
-			// Apply cost function
-			float costWeight = 0.f;
-			float objectiveValue = 0.f;
-			costFunc(errors[i].norm(), stddev, objectiveValue, costWeight);
-
-			// Build the Jacobian
-			MatrixXf J(2, 9);
-			J.setZero();
-			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
-				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
-			J /= w;
-
-			// Multiply by cost function weight
-
-		}*/
-		/*
-		// TODO: implement levenberg marquardt update properly
-
-		// determine which cost function
-		if (i < 5)
-			costFunc = &Huber;
-		else
-			costFunc = &Tukey;
-
-		// Over all feature points
-		for (i = 0; i < matches.size(); ++i)
-		{
-			// As above, first is x, the point on the right,
-			// and second is x', the point on the left
-			Vector3f x(matches[i].second.p.x, matches[i].second.p.y , 1);
-			Vector3f xprime(matches[i].first.p.x, matches[i].first.p.y , 1);
-
-			// Get the error term
-			Vector3f Hx = H * x;
-			float w = Hx(2);
-			Hx /= w;
-			Vector3f e = xprime - Hx;
-			//e *= -1;
-			const Vector2f e2(e(0), e(1));
-
-			float objectiveValue = 0;
-			float weight = 0;
-			costFunc(e2.norm(), stddev, objectiveValue, weight);
-
-			// Build the Jacobian
-			MatrixXf J(2, 9);
-			J.setZero();
-			J << x(0), x(1), x(2), 0, 0, 0, -Hx(0)*x(0), -Hx(0)*x(1), -Hx(0),
-				0, 0, 0, x(0), x(1), x(2), -Hx(1)*x(0), -Hx(1)*x(1), -Hx(1);
-			J /= w;
-
-			// Accumulate
-			JtJ += weight * J.transpose() * J;
-			Jte += weight * J.transpose() * e2;
-
-			error_accum += e2.norm();// objectiveValue;// e2.norm();
-		}
-
-		// Levenberg-Marquardt update
-		// TODO: pick a lambda, update lambda
-		for (i = 0; i < JtJ.rows(); ++i)
-		{
-			JtJ(i, i) += lambda *JtJ(i, i);
-		}
-
-		// Compute the update
-		update = JtJ.inverse() * -1 * Jte; // is there a negative here?
-		Matrix3f updateToH;
-		updateToH << update(0), update(1), update(2),
-			         update(3), update(4), update(5),
-			         update(6), update(7), update(8);
-		//updateToH /= updateToH(2,2);
-
-		// Test the update. If our error increased at all,
-		// cut out and we'll stop optimising.
-		// If the error decreases ... well, update the true H and keep going
-		//Matrix3f newH = H + updateToH;
-		//newH /= newH(2, 2);
-		float currError = error_accum;// ErrorInHomography(matches, newH);// error_accum;// .norm();// ErrorInHomography(matches, H + updateToH); // or multiplied the other way?
-		if (currError < prevError)
-		{
-			// update and continue
-			
-			lambda /= 10;
-			prevError = currError;
-
-			H += updateToH;
-			H /= H(2, 2);
-			//cout << H << endl;
-		}
-		else
-		{
-			lambda *= 10;
-			//break;
-		}
-		
-		cout << "CurrError: " << currError << " error_accum:  " << error_accum << " and lambda is " << lambda << endl;
-		//prevError = currError;
-		//cout << update << endl;
-		
-	}*/
 }
 
 /*
-	Huber cost function and Jacobian for the optimisation process. 
+	Huber cost function and Jacobian for the optimisation process,
+	and Tukey cost function and Jacobian for the same. 
 	We use a robust cost function to deal with outliers as our data begin too far
 	from the optimal point and I suspect optimisation is getting stuck in a local minimum elsewhere.
 
@@ -656,9 +493,6 @@ void BundleAdjustment(const vector<pair<Feature, Feature> >& matches, Matrix3f& 
 	Ethan Eade: http://ethaneade.com/optimization.pdf
 	Introduction to loss functions: https://blog.algorithmia.com/introduction-to-loss-functions/
 	Robust estimators: http://users.stat.umn.edu/~sandy/courses/8053/handouts/robust.pdf
-
-	We may want to try Tukey as well. From the sound of it, you use Huber to get vaguely close 
-	and then use Tukey to really optimise it finely ... let's just try Huber. 
 
 	So Tukey would weight too many outliers zero, and not get enough data, so it only works on a
 	good inlier set. 
@@ -701,6 +535,15 @@ void Tukey(const float& e, const float& stddev, float& objectiveValue, float& we
 	}
 }
 
+/*
+	The purpose of this is to compute the difference between:
+	(H + delta_h)(x) - H(x)
+	and
+	J_H(x)
+	
+	This is to test whether or not we have the right formulation of the Jacobian.
+	This test verifies that we do. 
+*/
 void FiniteDiff(const Matrix3f& H)
 {
 	const Vector3f x(1.f, 2.f, 1.f);
