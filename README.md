@@ -1,13 +1,9 @@
 # Panorama stitching
 
-TODO: 
-- testing headings
-
-
 The aim of this tutorial and program is to go over all the constituent parts and theory of  panorama stitching, 
 as well as providing a reference solution.
 The best place to start after reading here is main.cpp, where each component is used in sequence. Then step into each function or file as necessary. 
-Each component has a comment block that I will also explain here, along with reference texts.
+Each component has a comment block that I will also explain here, along with reference texts. If you want other tutorials to work through with this one, [here's a good place to start](https://courses.engr.illinois.edu/cs543/sp2011/lectures/Lecture%2021%20-%20Photo%20Stitching%20-%20Vision_Spring2011.pdf).
 
 I started this project at suggestion from a colleague to learn in-depth (from scratch) more about computer vision. Specifically, I wanted to learn - _really learn_ - what features were, how they worked, how they were used, how you transformed between images, etc, and the various 'tool' algorithms computer vision engineers use (like RANSAC and Levenberg-Marquardt). The solution here is not the best solution. It is not optimised for efficiency or beauty or anything. I just coded it to work and be understandable. But it does indeed work and I learnt a lot doing it, and I hope anyone reading this can too. I encourage you to read the reference texts I give, learn the theory, and perhaps try to write the algorithms yourself and compare results with what I have. Another good thing to try is to tweak the parameters I mention below to 'retune' my solution, so to speak, and see how the results differ. I'll mention any tunable parameters  that I think would be good to try. A good dataset to work with, that was made to test panography programs, is Adobe's [panorama dataset]( https://sourceforge.net/projects/adobedatasets.adobe/files/adobe_panoramas.tgz/download).
 
@@ -77,6 +73,8 @@ The idea behind FAST is that corners usually have two lines leading away from th
 ### Exercise 1
 At this point you should know enough theory to make at least a good attempt at Feature Detection - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
+What's a good way to test if this is working? Use OpenCV's image display and draw on image functions - I've got them wrapped in #ifdef's in main.cpp - to draw a small circle over each detected feature in your image, and then display it. These should be over things like corners, points of sharp change, some edges, etc. If you have features on smooth blank areas ... you have an error. 
+
 Once you are done with this, move on to **Feature Scoring**.
 
 
@@ -97,7 +95,7 @@ Once again, there are many methods of scoring features, and one of the most famo
 
 AI Shack has a [good article](http://aishack.in/tutorials/shitomasi-corner-detector/) on the Shi Tomasi score, but it relies on some [background knowledge](http://aishack.in/tutorials/harris-corner-detector/), or having read the previous articles linked at the bottom (they're short and easy and good).
 
-Essentially, for a the feature point and a small patch surrounding it, a matrix called the [Jacobian](https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant) is computed. This is basically the two dimensional version of the gradient. The way we compute this is documented [here](http://aishack.in/tutorials/harris-corner-detector/). Then, we compute the eigenvalues for this matrix. Since this is a two-by-two matrix (see the previous link), the eigenvalues are just the solutions to a simple quadratic equation. The Shi-Tomasi score, then, is simply the minimum eigenvalue. 
+Essentially, for a the feature point and a small patch surrounding it, a matrix called the [Jacobian](https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant) is computed. This is basically the two dimensional version of the [gradient](https://en.wikipedia.org/wiki/Sobel_operator). The way we compute this is documented [here](http://aishack.in/tutorials/harris-corner-detector/). Then, we compute the eigenvalues for this matrix. Since this is a two-by-two matrix (see the previous link), the eigenvalues are just the solutions to a simple quadratic equation. The Shi-Tomasi score, then, is simply the minimum eigenvalue. 
 
 Why? Why does this work? Well, for a two-by-two jacobian matrix, the eigenvalues define how strong the gradient is in the direction of the two eigen__vectors__ of the matrix. Basically, how much change we have in each direction. For a good corner, you should have a sharp image gradient (difference in pixel intensity) in both directions, so the minimum eigenvalue won't be that small. For just an edge, you'll have a sharp gradient in one direction but not the other, meaning one eigenvalue will be small. 
 
@@ -110,6 +108,8 @@ So we do this over our feature set that we've already cut down. For every featur
 
 ### Exercise 2
 At this point you should know enough theory to make at least a good attempt at Feature Scoring - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+What's a good way to test this? Well, use the image and point display from Exercise 1. Display all features, and then your scored "best" features, side by side. The ones that remain after scoring should be on really distinct patches like the corner of an eye, or a building, and less on edges of things. There should also be far fewer. 
 
 Once you've got this down, try **Feature Description**.
 
@@ -144,6 +144,8 @@ All of this is explained with nice diagrams in the AI Shack link above.
 ### Exercise 3
 At this point you should know enough theory to make at least a good attempt at Feature Description - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
+A good method of testing this is to give as input an image that is entirely white apart from a black square. You should only get strong features on the corners of the square. Furthermore, since SIFT feature descriptors are rotationally invariant, the descriptors should all be pretty similar. This can be tested by looking at the euclidean distance between two descriptors - this should be some relatively small number . It's hard to give an absolute value here, but you could compare it to the average distance between features on a normal image,
+
 Once this is working (Admittedly, this is hard to test without the next section), go on to **Feature Matching**. I actually recommend doing them together, but up to you. Feature matching is a good way to test Feature Description. 
 
 ### Tunable parameters
@@ -162,7 +164,9 @@ When we have found the closest and second closest right-image features for a par
 ### Exercise 4
 At this point you should know enough theory to make at least a good attempt at Feature Matching - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
-Once this is working - to test, see how many of your features between images match up -  go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
+To test, see how many of your features between images match up .. or you could use the testing setup from the last exercise.
+
+Once this is working,go on to **Finding the best transform**. This is probably the hardest and most complicated section. 
 
 ### Tunable Parameters
 You can try to tune Lowe's ratio, which is NN_RATIO, defined in Features.h. Changing this determines how "strong matches" are made. 
@@ -193,7 +197,18 @@ I realise this is not a comprehensive overview of how homographies work, but ala
 So how do we compute this matrix?
 I know I keep referring to it, but [this](http://www.corrmap.com/features/homography_transformation.php) sort-of explains it at the bottom. I also have a brief explanation above GetHomographyFromMatches in Estimation.cpp, so I won't parrot it here. Suffice to say that we assume that **x**' - H**x** = 0, for (at least) four pairs of matching points (**x**', **x**), form a 9-vector **h** from the elements of H and rework this equation to be A**h** = 0, for some matrix A (see Estimation.cpp). Then we use some estimation methods to solve this. The thing is ... there may be no **h** that precisely solves this equation, but there may be one that _approximately_ solves it. So we get the smallest possible solution that does so. But how are we getting these solutions **h** to A**h** = 0?
 
-[Singular Value Decomposition](https://en.wikipedia.org/wiki/Singular-value_decomposition). For more reference on this, I list a lot of links relating to the computation of this process, the theory behind it, the practical use, etc, above GetHomographyFromMatches in Estimation.cpp. This breaks A down into its 'singular values - these are the analogy of eigenvalues, but for non-square matrices. The matrix A is split into three matrices, U, D, and V transpose. D contains, listed from left to right descending along the diagonal, the singular values of A. The columns of V are the singular vectors of A. If we set **h** to be the vector corresponding to the smallest singular value of A, this gives us an approximate solution to A**h** = 0. 
+[Singular Value Decomposition](https://en.wikipedia.org/wiki/Singular-value_decomposition). For more reference on this, I list a lot of links relating to the computation of this process, the theory behind it, the practical use, etc, above GetHomographyFromMatches in Estimation.cpp.
+
+#### Resources on SVD:
+1. [An easy start with a simple explanation]( https://blog.statsbot.co/singular-value-decomposition-tutorial-52c695315254)
+2. [if you just want to read the math](https://www.cse.unr.edu/~bebis/CS791E/Notes/SVD.pdf)
+3. [hardcore theory behind the algorithm](https://hal.inria.fr/file/index/docid/174739/filename/RR-6303.pdf)
+4. [A pretty decent mathematical lecture on SVD]( https://cims.nyu.edu/~donev/Teaching/NMI-Fall2010/Lecture5.handout.pdf)
+5. [The Eigen library docs on SVD](https://eigen.tuxfamily.org/dox/group__SVD__Module.html)
+6. [Pages 7-14 talk pretty clearly about what I do in my SVD function](https://www.uio.no/studier/emner/matnat/its/UNIK4690/v16/forelesninger/lecture_4_3-estimating-homographies-from-feature-correspondences.pdf)
+
+
+This breaks A down into its 'singular values - these are the analogy of eigenvalues, but for non-square matrices. The matrix A is split into three matrices, U, D, and V transpose. D contains, listed from left to right descending along the diagonal, the singular values of A. The columns of V are the singular vectors of A. If we set **h** to be the vector corresponding to the smallest singular value of A, this gives us an approximate solution to A**h** = 0. 
 
 > If you don't understand this part - that's perfectly ok! I have a degree in mathematics and this took me a while and a lot of reading to figure things out, and even then I struggle with it. This is complicated stuff. If you want, you can just think "there's some magical method of getting this matrix H" and leave it at that. 
 
@@ -243,7 +258,9 @@ We solve this equation for *w* since we can compute everything else, and then ap
 ### Exercise 5
 At this point you should know enough theory to make at least a good attempt at finding the best transform - if you are trying to implement this yourself. If this takes you a lot of tries, and is full of bugs, don't worry! It took me _ages_ to get right. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
 
-Once this is working - you can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up - then finish it off with **Composition**.
+You can display the images to test this, cos if you transform the other image to the first's coordinate frame they should sorta line up. Another method is to generate some point pairs, where each pair has two of the same point. The homography generated should then be the identity matrix. To test this on optimsation, add some small error, like +/- .1, to each value. The optimiser should return the homography to what it originally was.
+
+Once this is working, then finish it off with **Composition**.
 
 ### Tunable parameters
 - MAX_RANSAC_ITERATIONS, in Estimation.h. This is the number of RANSAC iterations. Too few and we risk not finding a good enough solution. Too many and we are wasting processor time. 
@@ -251,6 +268,7 @@ Once this is working - you can display the images to test this, cos if you trans
 
 ### Other notes
 - There are other ways to do optimisation, and this is by no means the best or worst or whatever. But that's getting a bit deep and too much for here. 
+- TODO - normalisation of points
 
 
 ## Composition
@@ -268,6 +286,8 @@ Now that we have the correct pixel values from each image in the same coordinate
 
 ### Exercise 6
 At this point you should know enough theory to make at least a good attempt at Composition - if you are trying to implement this yourself. The next section is for if you are compiling and playing around with *my* code, and you want to experiment. 
+
+To test: display the final image and eyeball it? 
 
 Once this is working .... be proud!! You did it!
 
