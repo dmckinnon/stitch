@@ -95,7 +95,7 @@ Once again, there are many methods of scoring features, and one of the most famo
 
 AI Shack has a [good article](http://aishack.in/tutorials/shitomasi-corner-detector/) on the Shi Tomasi score, but it relies on some [background knowledge](http://aishack.in/tutorials/harris-corner-detector/), or having read the previous articles linked at the bottom (they're short and easy and good).
 
-Essentially, for a the feature point and a small patch surrounding it, a matrix called the [Jacobian](https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant) is computed. This is basically the two dimensional version of the gradient. The way we compute this is documented [here](http://aishack.in/tutorials/harris-corner-detector/). Then, we compute the eigenvalues for this matrix. Since this is a two-by-two matrix (see the previous link), the eigenvalues are just the solutions to a simple quadratic equation. The Shi-Tomasi score, then, is simply the minimum eigenvalue. 
+Essentially, for a the feature point and a small patch surrounding it, a matrix called the [Jacobian](https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant) is computed. This is basically the two dimensional version of the [gradient](https://en.wikipedia.org/wiki/Sobel_operator). The way we compute this is documented [here](http://aishack.in/tutorials/harris-corner-detector/). Then, we compute the eigenvalues for this matrix. Since this is a two-by-two matrix (see the previous link), the eigenvalues are just the solutions to a simple quadratic equation. The Shi-Tomasi score, then, is simply the minimum eigenvalue. 
 
 Why? Why does this work? Well, for a two-by-two jacobian matrix, the eigenvalues define how strong the gradient is in the direction of the two eigen__vectors__ of the matrix. Basically, how much change we have in each direction. For a good corner, you should have a sharp image gradient (difference in pixel intensity) in both directions, so the minimum eigenvalue won't be that small. For just an edge, you'll have a sharp gradient in one direction but not the other, meaning one eigenvalue will be small. 
 
@@ -197,7 +197,18 @@ I realise this is not a comprehensive overview of how homographies work, but ala
 So how do we compute this matrix?
 I know I keep referring to it, but [this](http://www.corrmap.com/features/homography_transformation.php) sort-of explains it at the bottom. I also have a brief explanation above GetHomographyFromMatches in Estimation.cpp, so I won't parrot it here. Suffice to say that we assume that **x**' - H**x** = 0, for (at least) four pairs of matching points (**x**', **x**), form a 9-vector **h** from the elements of H and rework this equation to be A**h** = 0, for some matrix A (see Estimation.cpp). Then we use some estimation methods to solve this. The thing is ... there may be no **h** that precisely solves this equation, but there may be one that _approximately_ solves it. So we get the smallest possible solution that does so. But how are we getting these solutions **h** to A**h** = 0?
 
-[Singular Value Decomposition](https://en.wikipedia.org/wiki/Singular-value_decomposition). For more reference on this, I list a lot of links relating to the computation of this process, the theory behind it, the practical use, etc, above GetHomographyFromMatches in Estimation.cpp. This breaks A down into its 'singular values - these are the analogy of eigenvalues, but for non-square matrices. The matrix A is split into three matrices, U, D, and V transpose. D contains, listed from left to right descending along the diagonal, the singular values of A. The columns of V are the singular vectors of A. If we set **h** to be the vector corresponding to the smallest singular value of A, this gives us an approximate solution to A**h** = 0. 
+[Singular Value Decomposition](https://en.wikipedia.org/wiki/Singular-value_decomposition). For more reference on this, I list a lot of links relating to the computation of this process, the theory behind it, the practical use, etc, above GetHomographyFromMatches in Estimation.cpp.
+
+#### Resources on SVD:
+1. [An easy start with a simple explanation]( https://blog.statsbot.co/singular-value-decomposition-tutorial-52c695315254)
+2. [if you just want to read the math](https://www.cse.unr.edu/~bebis/CS791E/Notes/SVD.pdf)
+3. [hardcore theory behind the algorithm](https://hal.inria.fr/file/index/docid/174739/filename/RR-6303.pdf)
+4. [A pretty decent mathematical lecture on SVD]( https://cims.nyu.edu/~donev/Teaching/NMI-Fall2010/Lecture5.handout.pdf)
+5. [The Eigen library docs on SVD](https://eigen.tuxfamily.org/dox/group__SVD__Module.html)
+6. [Pages 7-14 talk pretty clearly about what I do in my SVD function](https://www.uio.no/studier/emner/matnat/its/UNIK4690/v16/forelesninger/lecture_4_3-estimating-homographies-from-feature-correspondences.pdf)
+
+
+This breaks A down into its 'singular values - these are the analogy of eigenvalues, but for non-square matrices. The matrix A is split into three matrices, U, D, and V transpose. D contains, listed from left to right descending along the diagonal, the singular values of A. The columns of V are the singular vectors of A. If we set **h** to be the vector corresponding to the smallest singular value of A, this gives us an approximate solution to A**h** = 0. 
 
 > If you don't understand this part - that's perfectly ok! I have a degree in mathematics and this took me a while and a lot of reading to figure things out, and even then I struggle with it. This is complicated stuff. If you want, you can just think "there's some magical method of getting this matrix H" and leave it at that. 
 
